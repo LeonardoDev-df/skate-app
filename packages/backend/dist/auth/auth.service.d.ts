@@ -1,9 +1,9 @@
 import { JwtService } from '@nestjs/jwt';
-import { FirebaseConfig } from '../config/firebase.config';
+import { FirebaseService } from '../firebase/firebase.service';
 export declare class AuthService {
     private jwtService;
-    private firebaseConfig;
-    constructor(jwtService: JwtService, firebaseConfig: FirebaseConfig);
+    private firebaseService;
+    constructor(jwtService: JwtService, firebaseService: FirebaseService);
     validateFirebaseToken(idToken: string): Promise<import("firebase-admin/lib/auth/token-verifier").DecodedIdToken>;
     login(idToken: string): Promise<{
         access_token: string;
@@ -13,5 +13,9 @@ export declare class AuthService {
             name: any;
             picture: string;
         };
+    }>;
+    validateJwtToken(token: string): Promise<any>;
+    getUserProfile(uid: string): Promise<{
+        id: string;
     }>;
 }

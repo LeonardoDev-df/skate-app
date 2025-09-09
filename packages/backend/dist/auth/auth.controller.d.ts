@@ -1,9 +1,10 @@
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
 export declare class AuthController {
     private authService;
     constructor(authService: AuthService);
-    login(loginDto: LoginDto): Promise<{
+    login(loginDto: {
+        idToken: string;
+    }): Promise<{
         access_token: string;
         user: {
             id: string;
@@ -11,5 +12,12 @@ export declare class AuthController {
             name: any;
             picture: string;
         };
+    }>;
+    getProfile(req: any): Promise<{
+        id: string;
+    }>;
+    validateToken(req: any): Promise<{
+        valid: boolean;
+        user: any;
     }>;
 }

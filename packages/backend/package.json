@@ -8,29 +8,31 @@
     "dev": "nest start --watch"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^7.11.3",
     "@nestjs/common": "^10.0.0",
-    "@nestjs/core": "^10.0.0",
-    "@nestjs/platform-express": "^10.0.0",
     "@nestjs/config": "^3.0.0",
+    "@nestjs/core": "^10.0.0",
     "@nestjs/jwt": "^10.1.0",
     "@nestjs/passport": "^10.0.0",
+    "@nestjs/platform-express": "^10.0.0",
     "@nestjs/swagger": "^7.1.0",
-    "firebase-admin": "^11.10.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.0",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "firebase": "^12.2.1",
+    "firebase-admin": "^11.11.1",
+    "helmet": "^7.0.0",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.1",
-    "class-validator": "^0.14.0",
-    "class-transformer": "^0.5.1",
-    "cors": "^2.8.5",
-    "helmet": "^7.0.0",
-    "compression": "^1.7.4",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
-    "@types/node": "^20.3.1",
-    "@types/passport-jwt": "^3.0.9",
     "@types/cors": "^2.8.13",
+    "@types/node": "^20.19.13",
+    "@types/passport-jwt": "^3.0.9",
     "typescript": "^5.1.3"
   }
 }

@@ -6,4 +6,5 @@ export declare class FirebaseConfig {
     getAuth(): import("firebase-admin/lib/auth/auth").Auth;
     getFirestore(): admin.firestore.Firestore;
     getDatabase(): import("firebase-admin/lib/database/database").Database;
+    getStorage(): import("firebase-admin/lib/storage/storage").Storage;
 }

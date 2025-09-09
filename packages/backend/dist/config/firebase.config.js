@@ -17,14 +17,24 @@ let FirebaseConfig = class FirebaseConfig {
     constructor(configService) {
         this.configService = configService;
         if (!admin.apps.length) {
-            admin.initializeApp({
-                credential: admin.credential.cert({
-                    projectId: this.configService.get('FIREBASE_PROJECT_ID'),
-                    clientEmail: this.configService.get('FIREBASE_CLIENT_EMAIL'),
-                    privateKey: this.configService.get('FIREBASE_PRIVATE_KEY')?.replace(/\n/g, '\n'),
-                }),
-                databaseURL: this.configService.get('FIREBASE_DATABASE_URL'),
-            });
+            try {
+                admin.initializeApp({
+                    credential: admin.credential.cert({
+                        projectId: this.configService.get('FIREBASE_PROJECT_ID'),
+                        clientEmail: this.configService.get('FIREBASE_CLIENT_EMAIL'),
+                        privateKey: this.configService.get('FIREBASE_PRIVATE_KEY')?.replace(/\n/g, '\n'),
+                    }),
+                    databaseURL: this.configService.get('FIREBASE_DATABASE_URL'),
+                    storageBucket: this.configService.get('FIREBASE_STORAGE_BUCKET'),
+                });
+                console.log('✅ Firebase inicializado com sucesso!');
+                console.log(`📋 Projeto: ${this.configService.get('FIREBASE_PROJECT_ID')}`);
+                console.log(`📧 Service Account: ${this.configService.get('FIREBASE_CLIENT_EMAIL')}`);
+            }
+            catch (error) {
+                console.error('❌ Erro ao inicializar Firebase:', error.message);
+                throw error;
+            }
         }
     }
     getAuth() {
@@ -35,6 +45,9 @@ let FirebaseConfig = class FirebaseConfig {
     }
     getDatabase() {
         return admin.database();
+    }
+    getStorage() {
+        return admin.storage();
     }
 };
 exports.FirebaseConfig = FirebaseConfig;

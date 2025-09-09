@@ -1,16 +1,28 @@
-import { Controller, Post, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Post, Get, Body, UseGuards, Request } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
-@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
-  @ApiOperation({ summary: 'Login com Firebase token' })
-  async login(@Body() loginDto: LoginDto) {
+  async login(@Body() loginDto: { idToken: string }) {
     return this.authService.login(loginDto.idToken);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  async getProfile(@Request() req) {
+    return this.authService.getUserProfile(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('validate')
+  async validateToken(@Request() req) {
+    return {
+      valid: true,
+      user: req.user,
+    };
   }
 }
