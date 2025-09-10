@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { FirebaseConfig } from '../config/firebase.config';
 import * as admin from 'firebase-admin';
 
 @Injectable()
 export class FirebaseService {
+  private readonly logger = new Logger(FirebaseService.name);
   private firestore: admin.firestore.Firestore;
   private auth: admin.auth.Auth;
   private storage: admin.storage.Storage;
@@ -14,7 +15,26 @@ export class FirebaseService {
     this.storage = this.firebaseConfig.getStorage();
   }
 
-  // Métodos para Firestore
+  // ✅ Getter público para compatibilidade
+  get firestoreInstance() {
+    return this.firestore;
+  }
+
+  // ✅ Método getAllDocuments com tipagem melhorada
+  async getAllDocuments(collectionName: string): Promise<any[]> {
+    try {
+      const snapshot = await this.firestore.collection(collectionName).get();
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (error) {
+      this.logger.error(`Erro ao buscar documentos de ${collectionName}:`, error);
+      return [];
+    }
+  }
+
+  // ... resto dos métodos permanecem iguais
   async getCollection(collectionName: string) {
     return this.firestore.collection(collectionName);
   }
@@ -34,7 +54,6 @@ export class FirebaseService {
     return this.firestore.collection(collectionName).doc(docId).update(data);
   }
 
-  // ✅ CORRIGIDO: Removido o parâmetro 'data' do método delete()
   async deleteDocument(collectionName: string, docId: string) {
     return this.firestore.collection(collectionName).doc(docId).delete();
   }
@@ -51,15 +70,6 @@ export class FirebaseService {
     }));
   }
 
-  async getAllDocuments(collectionName: string) {
-    const snapshot = await this.firestore.collection(collectionName).get();
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-  }
-
-  // ✅ Método adicional para buscar com paginação
   async getDocumentsWithPagination(collectionName: string, limit: number, startAfter?: any) {
     let query = this.firestore.collection(collectionName).limit(limit);
     
@@ -78,7 +88,6 @@ export class FirebaseService {
     };
   }
 
-  // ✅ Método para buscar com ordenação
   async getDocumentsOrdered(collectionName: string, orderBy: string, direction: 'asc' | 'desc' = 'asc', limit?: number) {
     let query = this.firestore.collection(collectionName).orderBy(orderBy, direction);
     
@@ -93,21 +102,46 @@ export class FirebaseService {
     }));
   }
 
-  // ✅ Método para verificar se documento existe
   async documentExists(collectionName: string, docId: string): Promise<boolean> {
     const doc = await this.firestore.collection(collectionName).doc(docId).get();
     return doc.exists;
   }
 
-  // ✅ Método para contar documentos em uma coleção
   async countDocuments(collectionName: string): Promise<number> {
     const snapshot = await this.firestore.collection(collectionName).get();
     return snapshot.size;
   }
 
+  async getCollectionData(collectionName: string, limit: number = 10) {
+    try {
+      const snapshot = await this.firestore
+        .collection(collectionName)
+        .limit(limit)
+        .get();
+
+      const data = [];
+      snapshot.forEach(doc => {
+        data.push({ id: doc.id, ...doc.data() });
+      });
+
+      return {
+        count: snapshot.size,
+        data
+      };
+    } catch (error) {
+      this.logger.error(`Erro ao buscar ${collectionName}:`, error);
+      return { count: 0, data: [] };
+    }
+  }
+
   // Métodos para Auth
   async verifyToken(token: string) {
-    return this.auth.verifyIdToken(token);
+    try {
+      return await this.auth.verifyIdToken(token);
+    } catch (error) {
+      this.logger.error('Erro ao verificar token:', error);
+      throw error;
+    }
   }
 
   async getUserByUid(uid: string) {
@@ -126,12 +160,10 @@ export class FirebaseService {
     return this.auth.deleteUser(uid);
   }
 
-  // ✅ Método para listar usuários com paginação
   async listUsers(maxResults: number = 1000, pageToken?: string) {
     return this.auth.listUsers(maxResults, pageToken);
   }
 
-  // ✅ Método para verificar se usuário existe
   async userExists(uid: string): Promise<boolean> {
     try {
       await this.auth.getUser(uid);
@@ -141,7 +173,56 @@ export class FirebaseService {
     }
   }
 
-  // Métodos para Storage
+  // Rate limiting helper
+  async checkRateLimit(uid: string, action: string, limit: number = 10): Promise<boolean> {
+    try {
+      const now = Date.now();
+      const windowStart = now - (60 * 1000); // 1 minuto
+
+      const rateLimitRef = this.firestore
+        .collection('rateLimits')
+        .doc(`${uid}_${action}`);
+
+      const doc = await rateLimitRef.get();
+      
+      if (!doc.exists) {
+        await rateLimitRef.set({
+          count: 1,
+          windowStart: now,
+          lastRequest: now
+        });
+        return true;
+      }
+
+      const data = doc.data();
+      
+      if (data.windowStart < windowStart) {
+        // Nova janela de tempo
+        await rateLimitRef.update({
+          count: 1,
+          windowStart: now,
+          lastRequest: now
+        });
+        return true;
+      }
+
+      if (data.count >= limit) {
+        return false; // Rate limit excedido
+      }
+
+      await rateLimitRef.update({
+        count: admin.firestore.FieldValue.increment(1),
+        lastRequest: now
+      });
+
+      return true;
+    } catch (error) {
+      this.logger.error('Erro no rate limiting:', error);
+      return true; // Em caso de erro, permite a requisição
+    }
+  }
+
+  // Métodos para Storage permanecem iguais...
   getBucket() {
     return this.storage.bucket();
   }
@@ -152,7 +233,6 @@ export class FirebaseService {
     });
   }
 
-  // ✅ Método para upload de buffer
   async uploadBuffer(buffer: Buffer, destination: string, metadata?: any) {
     const file = this.storage.bucket().file(destination);
     
@@ -187,7 +267,6 @@ export class FirebaseService {
     return url;
   }
 
-  // ✅ Método para verificar se arquivo existe
   async fileExists(fileName: string): Promise<boolean> {
     try {
       const [exists] = await this.storage.bucket().file(fileName).exists();
@@ -197,7 +276,6 @@ export class FirebaseService {
     }
   }
 
-  // ✅ Método para listar arquivos
   async listFiles(prefix?: string) {
     const options: any = {};
     if (prefix) {
@@ -213,7 +291,6 @@ export class FirebaseService {
     }));
   }
 
-  // ✅ Método para obter metadados do arquivo
   async getFileMetadata(fileName: string) {
     const file = this.storage.bucket().file(fileName);
     const [metadata] = await file.getMetadata();

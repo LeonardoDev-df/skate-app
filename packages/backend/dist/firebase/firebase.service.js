@@ -8,16 +8,35 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var FirebaseService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FirebaseService = void 0;
 const common_1 = require("@nestjs/common");
 const firebase_config_1 = require("../config/firebase.config");
-let FirebaseService = class FirebaseService {
+const admin = require("firebase-admin");
+let FirebaseService = FirebaseService_1 = class FirebaseService {
     constructor(firebaseConfig) {
         this.firebaseConfig = firebaseConfig;
+        this.logger = new common_1.Logger(FirebaseService_1.name);
         this.firestore = this.firebaseConfig.getFirestore();
         this.auth = this.firebaseConfig.getAuth();
         this.storage = this.firebaseConfig.getStorage();
+    }
+    get firestoreInstance() {
+        return this.firestore;
+    }
+    async getAllDocuments(collectionName) {
+        try {
+            const snapshot = await this.firestore.collection(collectionName).get();
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+        }
+        catch (error) {
+            this.logger.error(`Erro ao buscar documentos de ${collectionName}:`, error);
+            return [];
+        }
     }
     async getCollection(collectionName) {
         return this.firestore.collection(collectionName);
@@ -42,13 +61,6 @@ let FirebaseService = class FirebaseService {
             .collection(collectionName)
             .where(field, operator, value)
             .get();
-        return snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-        }));
-    }
-    async getAllDocuments(collectionName) {
-        const snapshot = await this.firestore.collection(collectionName).get();
         return snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
@@ -88,8 +100,34 @@ let FirebaseService = class FirebaseService {
         const snapshot = await this.firestore.collection(collectionName).get();
         return snapshot.size;
     }
+    async getCollectionData(collectionName, limit = 10) {
+        try {
+            const snapshot = await this.firestore
+                .collection(collectionName)
+                .limit(limit)
+                .get();
+            const data = [];
+            snapshot.forEach(doc => {
+                data.push({ id: doc.id, ...doc.data() });
+            });
+            return {
+                count: snapshot.size,
+                data
+            };
+        }
+        catch (error) {
+            this.logger.error(`Erro ao buscar ${collectionName}:`, error);
+            return { count: 0, data: [] };
+        }
+    }
     async verifyToken(token) {
-        return this.auth.verifyIdToken(token);
+        try {
+            return await this.auth.verifyIdToken(token);
+        }
+        catch (error) {
+            this.logger.error('Erro ao verificar token:', error);
+            throw error;
+        }
     }
     async getUserByUid(uid) {
         return this.auth.getUser(uid);
@@ -113,6 +151,45 @@ let FirebaseService = class FirebaseService {
         }
         catch (error) {
             return false;
+        }
+    }
+    async checkRateLimit(uid, action, limit = 10) {
+        try {
+            const now = Date.now();
+            const windowStart = now - (60 * 1000);
+            const rateLimitRef = this.firestore
+                .collection('rateLimits')
+                .doc(`${uid}_${action}`);
+            const doc = await rateLimitRef.get();
+            if (!doc.exists) {
+                await rateLimitRef.set({
+                    count: 1,
+                    windowStart: now,
+                    lastRequest: now
+                });
+                return true;
+            }
+            const data = doc.data();
+            if (data.windowStart < windowStart) {
+                await rateLimitRef.update({
+                    count: 1,
+                    windowStart: now,
+                    lastRequest: now
+                });
+                return true;
+            }
+            if (data.count >= limit) {
+                return false;
+            }
+            await rateLimitRef.update({
+                count: admin.firestore.FieldValue.increment(1),
+                lastRequest: now
+            });
+            return true;
+        }
+        catch (error) {
+            this.logger.error('Erro no rate limiting:', error);
+            return true;
         }
     }
     getBucket() {
@@ -179,7 +256,7 @@ let FirebaseService = class FirebaseService {
     }
 };
 exports.FirebaseService = FirebaseService;
-exports.FirebaseService = FirebaseService = __decorate([
+exports.FirebaseService = FirebaseService = FirebaseService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [firebase_config_1.FirebaseConfig])
 ], FirebaseService);

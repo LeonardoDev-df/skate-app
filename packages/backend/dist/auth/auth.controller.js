@@ -16,6 +16,8 @@ exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
 const auth_service_1 = require("./auth.service");
 const jwt_auth_guard_1 = require("./guards/jwt-auth.guard");
+const rate_limit_guard_1 = require("../common/guards/rate-limit.guard");
+const rate_limit_decorator_1 = require("../common/decorators/rate-limit.decorator");
 let AuthController = class AuthController {
     constructor(authService) {
         this.authService = authService;
@@ -36,6 +38,7 @@ let AuthController = class AuthController {
 exports.AuthController = AuthController;
 __decorate([
     (0, common_1.Post)('login'),
+    (0, rate_limit_decorator_1.RateLimit)({ action: 'login', limit: 5 }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
@@ -59,6 +62,7 @@ __decorate([
 ], AuthController.prototype, "validateToken", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
+    (0, common_1.UseGuards)(rate_limit_guard_1.RateLimitGuard),
     __metadata("design:paramtypes", [auth_service_1.AuthService])
 ], AuthController);
 //# sourceMappingURL=auth.controller.js.map

@@ -2,19 +2,19 @@ import { FirebaseConfig } from '../config/firebase.config';
 import * as admin from 'firebase-admin';
 export declare class FirebaseService {
     private firebaseConfig;
+    private readonly logger;
     private firestore;
     private auth;
     private storage;
     constructor(firebaseConfig: FirebaseConfig);
+    get firestoreInstance(): admin.firestore.Firestore;
+    getAllDocuments(collectionName: string): Promise<any[]>;
     getCollection(collectionName: string): Promise<admin.firestore.CollectionReference<admin.firestore.DocumentData>>;
     getDocument(collectionName: string, docId: string): Promise<admin.firestore.DocumentSnapshot<admin.firestore.DocumentData>>;
     createDocument(collectionName: string, data: any, docId?: string): Promise<admin.firestore.DocumentReference<admin.firestore.DocumentData> | admin.firestore.WriteResult>;
     updateDocument(collectionName: string, docId: string, data: any): Promise<admin.firestore.WriteResult>;
     deleteDocument(collectionName: string, docId: string): Promise<admin.firestore.WriteResult>;
     queryDocuments(collectionName: string, field: string, operator: FirebaseFirestore.WhereFilterOp, value: any): Promise<{
-        id: string;
-    }[]>;
-    getAllDocuments(collectionName: string): Promise<{
         id: string;
     }[]>;
     getDocumentsWithPagination(collectionName: string, limit: number, startAfter?: any): Promise<{
@@ -29,6 +29,10 @@ export declare class FirebaseService {
     }[]>;
     documentExists(collectionName: string, docId: string): Promise<boolean>;
     countDocuments(collectionName: string): Promise<number>;
+    getCollectionData(collectionName: string, limit?: number): Promise<{
+        count: number;
+        data: any[];
+    }>;
     verifyToken(token: string): Promise<import("firebase-admin/lib/auth/token-verifier").DecodedIdToken>;
     getUserByUid(uid: string): Promise<import("firebase-admin/lib/auth/user-record").UserRecord>;
     createUser(userData: admin.auth.CreateRequest): Promise<import("firebase-admin/lib/auth/user-record").UserRecord>;
@@ -36,6 +40,7 @@ export declare class FirebaseService {
     deleteUser(uid: string): Promise<void>;
     listUsers(maxResults?: number, pageToken?: string): Promise<import("firebase-admin/lib/auth/base-auth").ListUsersResult>;
     userExists(uid: string): Promise<boolean>;
+    checkRateLimit(uid: string, action: string, limit?: number): Promise<boolean>;
     getBucket(): import("@google-cloud/storage").Bucket;
     uploadFile(filePath: string, destination: string): Promise<import("@google-cloud/storage").UploadResponse>;
     uploadBuffer(buffer: Buffer, destination: string, metadata?: any): Promise<unknown>;
