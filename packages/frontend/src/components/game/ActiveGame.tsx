@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useGameOfSkate } from '../../hooks/useGameOfSkate';
 import { useGameMusic } from '../../hooks/useGameMusic';
@@ -46,7 +46,7 @@ const ALL_MANOBRAS = [
 
 export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
   const { skatista } = useAuth();
-  const { escolherManobra, executarManobra, votar, loading } = useGameOfSkate();
+  const { escolherManobra, finalizarExecucao, votar, loading } = useGameOfSkate();
   const { isPlaying, currentTrack, tracks, isMuted, play, pause, nextTrack, toggleMute } = useGameMusic({ 
     volume: 0.2, 
     autoPlay: true 
@@ -66,14 +66,12 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
   const creatorPlayer = game.jogadores.find(p => p.id === game.criadorDaManobra);
   const jogadoresAtivos = game.jogadores.filter(p => !game.eliminados.includes(p.id));
   
-  // ✅ CORREÇÃO: Verificar quem pode votar (não pode ser criador nem executando)
-  const canVote = game.votacao && 
+  // ✅ CORREÇÃO: Verificar quem pode votar (NÃO pode ser quem está executando)
+  const canVote = game.faseAtual === 'votacao' && 
+                  game.votacao && 
                   !game.votacao.votos[skatista.uid] && 
-                  skatista.uid !== game.jogadorExecutando &&
-                  skatista.uid !== game.criadorDaManobra &&
+                  skatista.uid !== game.jogadorExecutando && // ✅ PRINCIPAL CORREÇÃO
                   !game.eliminados.includes(skatista.uid);
-
-  const manobrasDisponiveis = ALL_MANOBRAS.filter(m => !game.manobrasExecutadas.includes(m.name));
 
   const handleEscolherManobra = async () => {
     if (!selectedManobra) return;
@@ -82,8 +80,8 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
     setShowManobrasList(false);
   };
 
-  const handleExecutarManobra = async (resultado: 'acertou' | 'errou') => {
-    await executarManobra(resultado);
+  const handleFinalizarExecucao = async () => {
+    await finalizarExecucao();
   };
 
   const handleVotar = async (voto: 'acertou' | 'errou') => {
@@ -96,15 +94,14 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
       <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 p-4">
         <div className="max-w-md mx-auto">
           <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-6 text-center">
-            <div className="text-6xl mb-4">🏆</div>
+            <div className="text-6xl mb-4 animate-bounce">🏆</div>
             <h2 className="text-2xl font-bold text-white mb-4">
               Jogo Finalizado!
             </h2>
-            <p className="text-xl text-green-400 mb-6">
+            <p className="text-xl text-green-400 mb-6 font-bold">
               🎉 Vencedor: {game.vencedor}
             </p>
             
-            {/* Resultado Final */}
             <div className="bg-white/5 rounded-2xl p-4 mb-6">
               <h3 className="text-lg font-bold text-white mb-3">📊 Resultado Final</h3>
               <div className="space-y-3">
@@ -134,28 +131,11 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
               </div>
             </div>
 
-            {/* Manobras executadas */}
-            {game.manobrasExecutadas.length > 0 && (
-              <div className="bg-white/5 rounded-2xl p-4 mb-6">
-                <h3 className="text-lg font-bold text-white mb-3">🛹 Manobras do Jogo</h3>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {game.manobrasExecutadas.map((manobra, index) => (
-                    <span
-                      key={index}
-                      className="bg-purple-500/20 text-purple-200 px-2 py-1 rounded-full text-xs"
-                    >
-                      {manobra}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <button
               onClick={() => window.location.reload()}
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-3 px-6 rounded-xl"
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-3 px-6 rounded-xl hover:scale-105 transition-transform"
             >
-              Novo Jogo 🎮
+              🎮 Novo Jogo
             </button>
           </div>
         </div>
@@ -181,21 +161,21 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
             <div className="flex items-center space-x-2 ml-4">
               <button
                 onClick={isPlaying ? pause : play}
-                className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white"
+                className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white hover:bg-purple-700 transition-colors"
               >
                 {isPlaying ? '⏸️' : '▶️'}
               </button>
               <button
                 onClick={nextTrack}
-                className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white"
+                className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
               >
                 ⏭️
               </button>
               <button
                 onClick={toggleMute}
-                className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white"
+                className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
               >
-                {isMuted ? '🔇' : '🔊'}
+                {isMuted ? '🔇' : '��'}
               </button>
             </div>
           </div>
@@ -218,11 +198,6 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                  game.faseAtual === 'executandoManobra' ? '🛹 Executando' :
                  game.faseAtual === 'votacao' ? '🗳️ Votação' : '✅ Finalizado'}
               </span>
-              {game.isFirstRound && (
-                <span className="px-2 py-1 bg-green-500/20 text-green-200 rounded-full">
-                  🆕 Primeira Rodada
-                </span>
-              )}
             </div>
           </div>
 
@@ -290,7 +265,7 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
         {!game.eliminados.includes(skatista.uid) && (
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
             
-            {/* ✅ ESCOLHER MANOBRA - Só aparece para quem é a vez */}
+            {/* ✅ ESCOLHER MANOBRA */}
             {game.faseAtual === 'aguardandoManobra' && isMyTurn && (
               <div>
                 <h3 className="text-lg font-bold text-white mb-4">
@@ -306,7 +281,6 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
 
                 {showManobrasList && (
                   <div className="bg-white/5 rounded-xl p-4 mb-4 max-h-80 overflow-y-auto">
-                    {/* Category Tabs */}
                     <div className="flex space-x-1 mb-4 overflow-x-auto">
                       {Object.keys(MANOBRAS).map(category => (
                         <button
@@ -323,7 +297,6 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                       ))}
                     </div>
 
-                    {/* Manobras da categoria */}
                     <div className="space-y-2">
                       {MANOBRAS[selectedCategory]
                         .filter(manobra => !game.manobrasExecutadas.includes(manobra.name))
@@ -352,29 +325,21 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                           </button>
                         ))}
                     </div>
-
-                    {MANOBRAS[selectedCategory].filter(m => !game.manobrasExecutadas.includes(m.name)).length === 0 && (
-                      <div className="text-center py-4">
-                        <p className="text-white/70 text-sm">
-                          Todas as manobras {selectedCategory.toLowerCase()} já foram executadas
-                        </p>
-                      </div>
-                    )}
                   </div>
                 )}
 
                 <button
                   onClick={handleEscolherManobra}
                   disabled={!selectedManobra || loading}
-                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform"
                 >
                   {loading ? 'Enviando...' : 'Confirmar Manobra 🚀'}
                 </button>
               </div>
             )}
 
-            {/* ✅ EXECUTAR MANOBRA - Só para quem está executando */}
-            {game.faseAtual === 'executandoManobra' && isExecuting && !isCreator && (
+            {/* ✅ EXECUTAR MANOBRA - NOVA LÓGICA */}
+            {game.faseAtual === 'executandoManobra' && isExecuting && (
               <div>
                 <h3 className="text-lg font-bold text-white mb-4">
                   🛹 Execute: {game.manobraAtual}
@@ -391,100 +356,174 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                   );
                 })()}
                 
-                <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 mb-6">
-                  <p className="text-blue-200 text-center text-sm">
-                    {game.isFirstRound 
-                      ? "🆕 Primeira tentativa - se errar, próximo tenta (sem letra)"
-                      : "⚠️ Se errar, outros jogadores votarão"
-                    }
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 mb-6">
+                  <p className="text-orange-200 text-center text-sm">
+                    ⚠️ Execute a manobra e clique em "Finalizar"
+                  </p>
+                  <p className="text-orange-200 text-center text-xs mt-1">
+                    Os outros jogadores irão votar se você acertou ou errou
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => handleExecutarManobra('acertou')}
-                    disabled={loading}
-                    className="bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl disabled:opacity-50"
-                  >
-                    ✅ Acertei!
-                  </button>
-                  
-                  <button
-                    onClick={() => handleExecutarManobra('errou')}
-                    disabled={loading}
-                    className="bg-gradient-to-r from-red-600 to-pink-600 text-white font-bold py-4 rounded-xl disabled:opacity-50"
-                  >
-                    ❌ Errei
-                  </button>
-                </div>
+                <button
+                  onClick={handleFinalizarExecucao}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-4 rounded-xl disabled:opacity-50 hover:scale-105 transition-transform"
+                >
+                  {loading ? 'Finalizando...' : '✅ Finalizar Execução'}
+                </button>
               </div>
             )}
 
-            {/* ✅ VOTAÇÃO - Só para quem pode votar */}
+            {/* ✅ VOTAÇÃO CORRIGIDA */}
             {game.faseAtual === 'votacao' && game.votacao && (
               <div>
                 <h3 className="text-lg font-bold text-white mb-4">
-                  🗳️ Votação
+                  🗳️ Votação em Andamento
                 </h3>
                 
                 <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-3 mb-4">
                   <p className="text-purple-200 text-center text-sm">
-                    {executingPlayer?.name} disse que <strong>errou</strong>
+                    {executingPlayer?.name} executou a manobra
                   </p>
                   <p className="text-purple-200 text-center text-xs mt-1">
-                    <strong>{game.manobraAtual}</strong>
+                    <strong>"{game.manobraAtual}"</strong>
                   </p>
                 </div>
 
-                {canVote ? (
-                  <div>
-                    <p className="text-white text-center mb-4 text-sm">
-                      Você acha que {executingPlayer?.name} acertou ou errou?
+                {/* Resultado da votação */}
+                {game.votacao.resultado && (
+                  <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/50 rounded-2xl p-6 text-center mb-4 animate-pulse">
+                    <div className="text-4xl mb-3">
+                                            {game.votacao.resultado === 'acertou' ? '✅' : '❌'}
+                    </div>
+                    <h4 className="text-xl font-bold text-white mb-2">
+                      Resultado da Votação
+                    </h4>
+                    <p className="text-lg mb-4">
+                      <span className="text-white font-medium">{executingPlayer?.name}</span>
+                      <span className={`ml-2 font-bold ${
+                        game.votacao.resultado === 'acertou' ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        {game.votacao.resultado === 'acertou' ? 'ACERTOU' : 'ERROU'}
+                      </span>
                     </p>
                     
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        onClick={() => handleVotar('acertou')}
-                        disabled={loading}
-                        className="bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl disabled:opacity-50"
-                      >
-                        ✅ Acertou
-                      </button>
-                      
-                      <button
-                        onClick={() => handleVotar('errou')}
-                        disabled={loading}
-                        className="bg-gradient-to-r from-red-600 to-pink-600 text-white font-bold py-4 rounded-xl disabled:opacity-50"
-                      >
-                        ❌ Errou
-                      </button>
+                    <div className="bg-white/10 rounded-xl p-3 mb-4">
+                      <p className="text-white/70 text-sm mb-2">Votos recebidos:</p>
+                      <div className="flex justify-center space-x-6">
+                        <div className="text-center">
+                          <p className="text-green-400 font-bold text-2xl">
+                            {Object.values(game.votacao.votos).filter(v => v === 'acertou').length}
+                          </p>
+                          <p className="text-green-400 text-sm">✅ Acertou</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-red-400 font-bold text-2xl">
+                            {Object.values(game.votacao.votos).filter(v => v === 'errou').length}
+                          </p>
+                          <p className="text-red-400 text-sm">❌ Errou</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <p className="text-white/70 mb-2 text-sm">
-                      {game.votacao.votos[skatista.uid] 
-                        ? `Você votou: ${game.votacao.votos[skatista.uid] === 'acertou' ? '✅ Acertou' : '❌ Errou'}`
-                        : isCreator 
-                        ? 'Criador da manobra não pode votar'
-                        : 'Aguardando outros jogadores...'
-                      }
-                    </p>
-                    <p className="text-purple-200 text-xs">
-                      Votos: {Object.keys(game.votacao.votos).length}/{game.votacao.votosNecessarios}
+                    
+                    <p className="text-white/70 text-sm animate-bounce">
+                      Processando resultado...
                     </p>
                   </div>
+                )}
+
+                {/* Votação ativa */}
+                {!game.votacao.resultado && (
+                  <>
+                    {canVote ? (
+                      <div>
+                        <p className="text-white text-center mb-4 text-sm">
+                          Você acha que {executingPlayer?.name} acertou ou errou a manobra?
+                        </p>
+                        
+                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 mb-4">
+                          <p className="text-yellow-200 text-center text-xs">
+                            💡 Lembre-se: Só conta como acerto se TODOS votarem que acertou!
+                          </p>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            onClick={() => handleVotar('acertou')}
+                            disabled={loading}
+                            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl disabled:opacity-50 hover:scale-105 transition-transform"
+                          >
+                            ✅ Acertou
+                          </button>
+                          
+                          <button
+                            onClick={() => handleVotar('errou')}
+                            disabled={loading}
+                            className="bg-gradient-to-r from-red-600 to-pink-600 text-white font-bold py-4 rounded-xl disabled:opacity-50 hover:scale-105 transition-transform"
+                          >
+                            ❌ Errou
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-white/70 mb-2 text-sm">
+                          {game.votacao.votos[skatista.uid] 
+                            ? `Você votou: ${game.votacao.votos[skatista.uid] === 'acertou' ? '✅ Acertou' : '❌ Errou'}`
+                            : skatista.uid === game.jogadorExecutando
+                            ? '🛹 Você executou a manobra - aguarde a votação'
+                            : '⏳ Aguardando outros jogadores votarem...'
+                          }
+                        </p>
+                        <p className="text-purple-200 text-xs mb-4">
+                          Votos: {Object.keys(game.votacao.votos).length}/{game.votacao.votosNecessarios}
+                        </p>
+                        
+                        {/* Progress bar */}
+                        <div className="w-full bg-white/10 rounded-full h-2 mb-4">
+                          <div 
+                            className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                            style={{ 
+                              width: `${(Object.keys(game.votacao.votos).length / game.votacao.votosNecessarios) * 100}%` 
+                            }}
+                          ></div>
+                        </div>
+                        
+                        {/* Lista de votantes */}
+                        <div className="space-y-2">
+                          {game.jogadores
+                            .filter(p => !game.eliminados.includes(p.id) && 
+                                        p.id !== game.jogadorExecutando) // ✅ Executador não aparece na lista
+                            .map(player => (
+                              <div key={player.id} className="flex items-center justify-between text-xs bg-white/5 rounded-lg p-2">
+                                <span className="text-white/70">{player.name}</span>
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                  game.votacao!.votos[player.id] 
+                                    ? 'bg-green-500/20 text-green-200' 
+                                    : 'bg-yellow-500/20 text-yellow-200'
+                                }`}>
+                                  {game.votacao!.votos[player.id] 
+                                    ? `✓ ${game.votacao!.votos[player.id] === 'acertou' ? 'Acertou' : 'Errou'}` 
+                                    : '⏳ Aguardando'}
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
 
             {/* ✅ AGUARDANDO */}
             {((game.faseAtual === 'aguardandoManobra' && !isMyTurn) ||
-              (game.faseAtual === 'executandoManobra' && !isExecuting) ||
-              (game.faseAtual === 'executandoManobra' && isCreator)) && (
+              (game.faseAtual === 'executandoManobra' && !isExecuting)) && (
               <div className="text-center">
+                <div className="text-4xl mb-4 animate-bounce">⏳</div>
                 <h3 className="text-lg font-bold text-white mb-2">
-                  ⏳ Aguardando {currentPlayer?.name || executingPlayer?.name}
+                  Aguardando {currentPlayer?.name || executingPlayer?.name}
                 </h3>
                 <p className="text-purple-200 mb-4 text-sm">
                   {game.faseAtual === 'aguardandoManobra' 
@@ -514,21 +553,21 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
         <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4">
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-xl font-bold text-white">{game.manobrasExecutadas.length}</p>
+              <p className="text-xl font-bold text-blue-400">{game.manobrasExecutadas.length}</p>
               <p className="text-white/70 text-xs">Manobras</p>
             </div>
             <div>
-              <p className="text-xl font-bold text-white">{jogadoresAtivos.length}</p>
+              <p className="text-xl font-bold text-green-400">{jogadoresAtivos.length}</p>
               <p className="text-white/70 text-xs">Ativos</p>
             </div>
             <div>
-              <p className="text-xl font-bold text-white">{game.eliminados.length}</p>
+              <p className="text-xl font-bold text-red-400">{game.eliminados.length}</p>
               <p className="text-white/70 text-xs">Eliminados</p>
             </div>
           </div>
         </div>
 
-        {/* ✅ HISTÓRICO DE MANOBRAS - Sempre visível */}
+        {/* Histórico de Manobras */}
         {game.manobrasExecutadas.length > 0 && (
           <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4">
             <h4 className="text-white font-medium mb-3 text-sm">🛹 Histórico de Manobras</h4>
@@ -536,7 +575,7 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
               {game.manobrasExecutadas.map((manobra, index) => (
                 <span
                   key={index}
-                  className="bg-purple-500/20 text-purple-200 px-2 py-1 rounded-full text-xs"
+                  className="bg-purple-500/20 text-purple-200 px-2 py-1 rounded-full text-xs hover:bg-purple-500/30 transition-colors"
                 >
                   {manobra}
                 </span>
@@ -545,7 +584,131 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
           </div>
         )}
 
-        {/* Bottom padding for navigation */}
+      
+{game.votacao?.resultado && (
+  <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/50 rounded-2xl p-6 text-center mb-4 animate-pulse">
+    <div className="text-4xl mb-3">
+      {game.votacao.resultado === 'acertou' ? '✅' : '❌'}
+    </div>
+    <h4 className="text-xl font-bold text-white mb-2">
+      Resultado da Votação
+    </h4>
+    <p className="text-lg mb-4">
+      <span className="text-white font-medium">{executingPlayer?.name}</span>
+      <span className={`ml-2 font-bold ${
+        game.votacao.resultado === 'acertou' ? 'text-green-400' : 'text-red-400'
+      }`}>
+        {game.votacao.resultado === 'acertou' ? 'ACERTOU' : 'ERROU'}
+      </span>
+    </p>
+    
+    <div className="bg-white/10 rounded-xl p-3 mb-4">
+      <p className="text-white/70 text-sm mb-2">Votos recebidos:</p>
+      <div className="flex justify-center space-x-6">
+        <div className="text-center">
+          <p className="text-green-400 font-bold text-2xl">
+            {Object.values(game.votacao.votos).filter(v => v === 'acertou').length}
+          </p>
+          <p className="text-green-400 text-sm">✅ Acertou</p>
+        </div>
+        <div className="text-center">
+          <p className="text-red-400 font-bold text-2xl">
+            {Object.values(game.votacao.votos).filter(v => v === 'errou').length}
+          </p>
+          <p className="text-red-400 text-sm">❌ Errou</p>
+        </div>
+      </div>
+    </div>
+    
+    <p className="text-white/70 text-sm animate-bounce">
+      Processando resultado...
+    </p>
+  </div>
+)}
+
+{/* Votação ativa - só mostra se NÃO tem resultado */}
+{!game.votacao?.resultado && (
+  <>
+    {canVote ? (
+      <div>
+        <p className="text-white text-center mb-4 text-sm">
+          Você acha que {executingPlayer?.name} acertou ou errou a manobra?
+        </p>
+        
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 mb-4">
+          <p className="text-yellow-200 text-center text-xs">
+            💡 Lembre-se: Só conta como acerto se TODOS votarem que acertou!
+          </p>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => handleVotar('acertou')}
+            disabled={loading}
+            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl disabled:opacity-50 hover:scale-105 transition-transform"
+          >
+            ✅ Acertou
+          </button>
+          
+          <button
+            onClick={() => handleVotar('errou')}
+            disabled={loading}
+            className="bg-gradient-to-r from-red-600 to-pink-600 text-white font-bold py-4 rounded-xl disabled:opacity-50 hover:scale-105 transition-transform"
+          >
+            ❌ Errou
+          </button>
+        </div>
+      </div>
+    ) : (
+      <div className="text-center">
+        <p className="text-white/70 mb-2 text-sm">
+          {game.votacao?.votos[skatista.uid] 
+            ? `Você votou: ${game.votacao.votos[skatista.uid] === 'acertou' ? '✅ Acertou' : '❌ Errou'}`
+            : skatista.uid === game.jogadorExecutando
+            ? '🛹 Você executou a manobra - aguarde a votação'
+            : '⏳ Aguardando outros jogadores votarem...'
+          }
+        </p>
+        <p className="text-purple-200 text-xs mb-4">
+          Votos: {Object.keys(game.votacao?.votos || {}).length}/{game.votacao?.votosNecessarios || 0}
+        </p>
+        
+        {/* Progress bar */}
+        <div className="w-full bg-white/10 rounded-full h-2 mb-4">
+          <div 
+            className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+            style={{ 
+              width: `${game.votacao?.votosNecessarios ? (Object.keys(game.votacao.votos).length / game.votacao.votosNecessarios) * 100 : 0}%` 
+            }}
+          ></div>
+        </div>
+        
+        {/* Lista de votantes */}
+        <div className="space-y-2">
+                  {game.jogadores
+                    .filter(p => !game.eliminados.includes(p.id) && 
+                                p.id !== game.jogadorExecutando)
+                    .map(player => (
+                      <div key={player.id} className="flex items-center justify-between text-xs bg-white/5 rounded-lg p-2">
+                        <span className="text-white/70">{player.name}</span>
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          game.votacao?.votos[player.id] 
+                            ? 'bg-green-500/20 text-green-200' 
+                            : 'bg-yellow-500/20 text-yellow-200'
+                        }`}>
+                          {game.votacao?.votos[player.id] 
+                            ? `✓ ${game.votacao.votos[player.id] === 'acertou' ? 'Acertou' : 'Errou'}` 
+                            : '⏳ Aguardando'}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Bottom padding */}
         <div className="h-20"></div>
       </div>
     </div>

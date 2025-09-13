@@ -39,9 +39,11 @@ export const GameRanking: React.FC<GameRankingProps> = ({ rankings }) => {
       : {}
   };
 
-  const topWinnerName = Object.keys(stats.topWinner).reduce((a, b) => 
-    stats.topWinner[a] > stats.topWinner[b] ? a : b, ''
-  );
+  const topWinnerName = Object.keys(stats.topWinner).length > 0 
+    ? Object.keys(stats.topWinner).reduce((a, b) => 
+        stats.topWinner[a] > stats.topWinner[b] ? a : b, ''
+      )
+    : 'Nenhum';
 
   // Filtrar rankings
   const filteredRankings = rankings.filter(ranking => {
@@ -105,7 +107,7 @@ export const GameRanking: React.FC<GameRankingProps> = ({ rankings }) => {
           </div>
           
           <div className="bg-white/10 rounded-xl p-4 text-center">
-            <div className="text-lg font-bold text-green-400">
+            <div className="text-lg font-bold text-green-400 truncate">
               👑 {topWinnerName}
             </div>
             <div className="text-purple-200 text-sm">Top Player</div>
@@ -188,11 +190,16 @@ export const GameRanking: React.FC<GameRankingProps> = ({ rankings }) => {
             {filteredRankings.map((ranking, index) => (
               <div
                 key={ranking.id}
-                className="bg-white/5 rounded-xl p-4"
+                className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-colors"
               >
                 <div className="flex items-start space-x-4">
-                  <div className="w-10 h-10 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-white font-bold">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    index === 0 ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
+                    index === 1 ? 'bg-gradient-to-r from-gray-400 to-gray-500' :
+                    index === 2 ? 'bg-gradient-to-r from-orange-600 to-orange-700' :
+                    'bg-gradient-to-r from-purple-500 to-blue-500'
+                  }`}>
+                    <span className="text-white font-bold text-sm">
                       #{index + 1}
                     </span>
                   </div>
@@ -200,7 +207,7 @@ export const GameRanking: React.FC<GameRankingProps> = ({ rankings }) => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2 mb-1">
                       <span className="text-xl">🏆</span>
-                      <span className="text-white font-bold">
+                      <span className="text-white font-bold truncate">
                         {ranking.vencedor}
                       </span>
                       <span className="text-green-400 text-sm">
@@ -208,7 +215,7 @@ export const GameRanking: React.FC<GameRankingProps> = ({ rankings }) => {
                       </span>
                     </div>
                     
-                    <p className="text-purple-200 text-sm mb-2">
+                    <p className="text-purple-200 text-sm mb-2 truncate">
                       📍 {ranking.skatePark}
                     </p>
                     
@@ -216,13 +223,13 @@ export const GameRanking: React.FC<GameRankingProps> = ({ rankings }) => {
                       {formatDate(ranking.data)}
                     </p>
 
-                    {ranking.eliminados.length > 0 && (
+                    {ranking.eliminados && ranking.eliminados.length > 0 && (
                       <div>
                         <p className="text-white/70 text-xs mb-1">
                           Eliminados:
                         </p>
                         <div className="flex flex-wrap gap-1">
-                          {ranking.eliminados.map((eliminado, idx) => (
+                          {ranking.eliminados.slice(0, 3).map((eliminado, idx) => (
                             <span
                               key={idx}
                               className="bg-red-500/20 text-red-200 px-2 py-1 rounded text-xs"
@@ -230,6 +237,11 @@ export const GameRanking: React.FC<GameRankingProps> = ({ rankings }) => {
                               {eliminado}
                             </span>
                           ))}
+                          {ranking.eliminados.length > 3 && (
+                            <span className="text-white/50 text-xs">
+                              +{ranking.eliminados.length - 3} mais
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}
@@ -239,7 +251,7 @@ export const GameRanking: React.FC<GameRankingProps> = ({ rankings }) => {
                     <div className="text-white/70 text-xs">
                       Criado por
                     </div>
-                    <div className="text-white text-sm font-medium">
+                    <div className="text-white text-sm font-medium truncate max-w-20">
                       {ranking.criador}
                     </div>
                   </div>

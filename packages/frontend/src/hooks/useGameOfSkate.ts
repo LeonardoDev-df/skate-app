@@ -17,18 +17,70 @@ import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { GameInvite, GameMatch, Player } from '../types/game.types';
 
+// Sistema de Som
+const createAudioContext = () => {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    return audioContext;
+  } catch (error) {
+    console.warn('Web Audio API não suportado:', error);
+    return null;
+  }
+};
+
+const playSound = (frequency: number, duration: number = 200, type: 'success' | 'error' | 'notification' | 'vote' | 'elimination' | 'victory' = 'notification') => {
+  const audioContext = createAudioContext();
+  if (!audioContext) return;
+
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  const frequencies = {
+    success: [523, 659, 784],
+    error: [220, 185, 147],
+    notification: [440, 554],
+    vote: [349, 440],
+    elimination: [196, 165, 131],
+    victory: [523, 659, 784, 1047]
+  };
+
+  const freqs = frequencies[type];
+  
+  oscillator.frequency.setValueAtTime(freqs[0], audioContext.currentTime);
+  if (freqs[1]) {
+    oscillator.frequency.setValueAtTime(freqs[1], audioContext.currentTime + 0.1);
+  }
+  if (freqs[2]) {
+    oscillator.frequency.setValueAtTime(freqs[2], audioContext.currentTime + 0.2);
+  }
+  if (freqs[3]) {
+    oscillator.frequency.setValueAtTime(freqs[3], audioContext.currentTime + 0.3);
+  }
+
+  gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+
+  oscillator.start(audioContext.currentTime);
+  oscillator.stop(audioContext.currentTime + duration / 1000);
+};
+
 export const useGameOfSkate = () => {
   const { skatista } = useAuth();
   const [gameInvites, setGameInvites] = useState<GameInvite[]>([]);
   const [activeGame, setActiveGame] = useState<GameMatch | null>(null);
+  const [rankings, setRankings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // ✅ Cache para evitar buscas repetidas
   const playersCache = useRef<Record<string, { players: Player[], timestamp: number }>>({});
-  const CACHE_DURATION = 30000; // 30 segundos
+  const CACHE_DURATION = 30000;
 
-  // Buscar convites com timer
+  // Buscar convites
   useEffect(() => {
     if (!skatista) return;
 
@@ -41,7 +93,6 @@ export const useGameOfSkate = () => {
       const invites = snapshot.docs.map(doc => {
         const data = doc.data();
         
-        // Calcular timer restante
         const now = new Date();
         const expiresAt = data.expiresAt?.toDate();
         const timer = expiresAt ? Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000)) : 0;
@@ -52,14 +103,12 @@ export const useGameOfSkate = () => {
           timer
         };
       }).filter(invite => 
-        // Mostrar apenas convites relevantes para o usuário
         invite.creator.id === skatista.uid || 
         invite.players.some((p: Player) => p.id === skatista.uid)
       ) as GameInvite[];
       
       setGameInvites(invites);
 
-      // Auto-expirar convites (apenas uma vez por convite)
       invites.forEach(invite => {
         if (invite.timer <= 0 && invite.status === 'Aguardando') {
           updateDoc(doc(db, 'GameInvites', invite.id), {
@@ -87,7 +136,6 @@ export const useGameOfSkate = () => {
         ...doc.data()
       })) as GameMatch[];
 
-      // Encontrar jogo onde o usuário participa
       const myGame = activeGames.find(game => 
         game.jogadores?.some(p => p.id === skatista.uid)
       );
@@ -98,21 +146,34 @@ export const useGameOfSkate = () => {
     return unsubscribe;
   }, [skatista]);
 
-  // ✅ FUNÇÃO OTIMIZADA com cache e useCallback
+  // Buscar rankings
+  useEffect(() => {
+    const q = query(
+      collection(db, 'ranking'),
+      orderBy('data', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const rankingData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setRankings(rankingData);
+    });
+
+    return unsubscribe;
+  }, []);
+
   const getSkateParksPlayers = useCallback(async (skatePark: string): Promise<Player[]> => {
     try {
-      // Verificar cache primeiro
       const cacheKey = skatePark;
       const cached = playersCache.current[cacheKey];
       const now = Date.now();
       
       if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-        console.log('📦 Usando cache para:', skatePark, '- Jogadores:', cached.players.length);
         return cached.players;
       }
 
-      console.log('🔍 Buscando jogadores no skatepark:', skatePark);
-      
       const skatistasQuery = query(collection(db, 'Skatistas'));
       const snapshot = await getDocs(skatistasQuery);
       
@@ -121,17 +182,14 @@ export const useGameOfSkate = () => {
       snapshot.docs.forEach(docSnap => {
         const data = docSnap.data();
         
-        // ✅ Verificação mais rigorosa do UID
         if (!data.uid || data.uid === skatista?.uid || data.status !== 'Online') {
-          return; // Pular este skatista
+          return;
         }
         
-        // Verificar se tem o skatepark nos spots
         const hasSkatepark = data.spots?.some((spot: any) => {
           const spotPath = spot.path || spot;
           const spotName = typeof spot === 'string' ? spot : spotPath;
           
-          // Verificações múltiplas para garantir compatibilidade
           return spotName.includes(skatePark) || 
                  spotName.includes(skatePark.replace(/\s+/g, '%20')) ||
                  spotName.includes(skatePark.replace(/\s+/g, ' ')) ||
@@ -151,13 +209,11 @@ export const useGameOfSkate = () => {
         }
       });
       
-      // ✅ Salvar no cache
       playersCache.current[cacheKey] = {
         players,
         timestamp: now
       };
       
-      console.log('✅ Jogadores encontrados:', players.length);
       return players;
     } catch (error) {
       console.error('❌ Erro ao buscar jogadores:', error);
@@ -165,7 +221,6 @@ export const useGameOfSkate = () => {
     }
   }, [skatista?.uid]);
 
-  // Criar convite com timer de 3 minutos
   const createGameInvite = useCallback(async (skatePark: string, invitedPlayers: Player[]) => {
     if (!skatista) throw new Error('Usuário não autenticado');
 
@@ -173,10 +228,8 @@ export const useGameOfSkate = () => {
     setError(null);
 
     try {
-      console.log('🎮 Criando convite para:', skatePark, 'com', invitedPlayers.length, 'jogadores');
-      
       const now = new Date();
-      const expiresAt = new Date(now.getTime() + 3 * 60 * 1000); // 3 minutos
+      const expiresAt = new Date(now.getTime() + 3 * 60 * 1000);
 
       const allPlayers = [
         {
@@ -191,7 +244,6 @@ export const useGameOfSkate = () => {
         ...invitedPlayers
       ];
 
-      // Criar objeto de respostas
       const responses: Record<string, 'accepted' | 'declined' | 'pending'> = {};
       allPlayers.forEach(player => {
         responses[player.id] = player.id === skatista.uid ? 'accepted' : 'pending';
@@ -208,26 +260,24 @@ export const useGameOfSkate = () => {
         skatePark,
         status: 'Aguardando',
         responses,
-        timer: 180 // 3 minutos em segundos
+        timer: 180
       };
 
       const docRef = await addDoc(collection(db, 'GameInvites'), inviteData);
-      
-      // ✅ Limpar cache após criar convite
       playersCache.current = {};
       
-      console.log('✅ Convite criado com ID:', docRef.id);
+      playSound(440, 300, 'notification');
+      
       return docRef.id;
     } catch (error: any) {
-      console.error('❌ Erro ao criar convite:', error);
       setError(error.message);
+      playSound(220, 500, 'error');
       throw error;
     } finally {
       setLoading(false);
     }
   }, [skatista]);
 
-  // Responder convite
   const respondToInvite = useCallback(async (inviteId: string, response: 'accepted' | 'declined') => {
     if (!skatista) throw new Error('Usuário não autenticado');
 
@@ -235,12 +285,9 @@ export const useGameOfSkate = () => {
     setError(null);
 
     try {
-      console.log('📝 Respondendo convite:', inviteId, 'com:', response);
-      
       const invite = gameInvites.find(inv => inv.id === inviteId);
       if (!invite) throw new Error('Convite não encontrado');
 
-      // Atualizar resposta
       const updatedResponses = {
         ...invite.responses,
         [skatista.uid]: response
@@ -250,42 +297,35 @@ export const useGameOfSkate = () => {
         responses: updatedResponses
       });
 
-      // Verificar se todos aceitaram
       const allResponses = Object.values(updatedResponses);
       const allAccepted = allResponses.every(resp => resp === 'accepted');
       const hasDeclined = allResponses.some(resp => resp === 'declined');
 
       if (hasDeclined) {
-        // Se alguém recusou, cancelar
         await updateDoc(doc(db, 'GameInvites', inviteId), {
           status: 'Cancelado'
         });
-        console.log('❌ Convite cancelado - alguém recusou');
+        playSound(220, 500, 'error');
       } else if (allAccepted) {
-        // Se todos aceitaram, iniciar jogo
-        console.log('🚀 Todos aceitaram - iniciando jogo!');
         await startGame(invite);
+        playSound(523, 800, 'success');
+      } else {
+        playSound(440, 200, 'notification');
       }
 
     } catch (error: any) {
-      console.error('❌ Erro ao responder convite:', error);
       setError(error.message);
+      playSound(220, 500, 'error');
       throw error;
     } finally {
       setLoading(false);
     }
   }, [skatista, gameInvites]);
 
-  // Iniciar jogo
   const startGame = useCallback(async (invite: GameInvite) => {
     try {
-      console.log('🎯 Iniciando jogo com', invite.players.length, 'jogadores');
-      
-      // Escolher jogador aleatório para começar
       const randomIndex = Math.floor(Math.random() * invite.players.length);
       const firstPlayer = invite.players[randomIndex];
-
-      console.log('🎲 Jogador inicial escolhido:', firstPlayer.name);
 
       const gameData = {
         inviteId: invite.id,
@@ -308,12 +348,9 @@ export const useGameOfSkate = () => {
 
       await addDoc(collection(db, 'Partidas'), gameData);
 
-      // Atualizar status do convite
       await updateDoc(doc(db, 'GameInvites', invite.id), {
         status: 'Em Andamento'
       });
-
-      console.log('✅ Jogo iniciado com sucesso!');
 
     } catch (error) {
       console.error('❌ Erro ao iniciar jogo:', error);
@@ -321,14 +358,11 @@ export const useGameOfSkate = () => {
     }
   }, []);
 
-  // Escolher manobra
   const escolherManobra = useCallback(async (manobra: string) => {
     if (!activeGame || !skatista) return;
 
     setLoading(true);
     try {
-      console.log('🎯 Escolhendo manobra:', manobra);
-      
       await updateDoc(doc(db, 'Partidas', activeGame.id), {
         manobraAtual: manobra,
         criadorDaManobra: skatista.uid,
@@ -338,144 +372,149 @@ export const useGameOfSkate = () => {
         turnoTimestamp: Date.now()
       });
       
-      console.log('✅ Manobra escolhida com sucesso');
+      playSound(440, 300, 'notification');
     } catch (error: any) {
-      console.error('❌ Erro ao escolher manobra:', error);
       setError(error.message);
+      playSound(220, 500, 'error');
       throw error;
     } finally {
       setLoading(false);
     }
   }, [activeGame, skatista]);
 
-  // ✅ EXECUTAR MANOBRA CORRIGIDO
-  const executarManobra = useCallback(async (resultado: 'acertou' | 'errou') => {
-    if (!activeGame || !skatista) return;
+ // ✅ NOVA FUNÇÃO: Finalizar execução da manobra (sem dizer se acertou/errou)
+const finalizarExecucao = useCallback(async () => {
+  if (!activeGame || !skatista) return;
 
-    setLoading(true);
-    try {
-      console.log('🛹 Executando manobra com resultado:', resultado);
-      
-      if (resultado === 'errou' && activeGame.isFirstRound) {
-        // Primeira rodada: se errar, próximo jogador tenta (sem ganhar letra)
-        const nextPlayer = getNextPlayer(activeGame.jogadores, activeGame.turnoAtual, activeGame.eliminados);
-        
-        await updateDoc(doc(db, 'Partidas', activeGame.id), {
-          turnoAtual: nextPlayer,
-          faseAtual: 'aguardandoManobra',
-          manobraAtual: '',
-          criadorDaManobra: null,
-          jogadorExecutando: '',
-          isFirstRound: true
-        });
-        
-        console.log('🔄 Primeira rodada - próximo jogador tenta');
-      } else if (resultado === 'acertou') {
-        // Acertou: outros jogadores precisam tentar a mesma manobra
-        const nextPlayer = getNextPlayer(activeGame.jogadores, activeGame.turnoAtual, activeGame.eliminados);
-        
-        await updateDoc(doc(db, 'Partidas', activeGame.id), {
-          turnoAtual: nextPlayer,
-          jogadorExecutando: nextPlayer,
-          faseAtual: 'executandoManobra',
-          isFirstRound: false
-        });
-        
-        console.log('✅ Acertou - próximo jogador deve tentar a mesma manobra');
-      } else {
-        // ✅ CORREÇÃO: Quem criou a manobra não pode votar
-        const otherPlayers = activeGame.jogadores.filter(p => 
-          p.id !== skatista.uid && 
-          p.id !== activeGame.criadorDaManobra && // Criador não vota
-          !activeGame.eliminados.includes(p.id)
-        );
+  setLoading(true);
+  try {
+    // ✅ CORREÇÃO: Quem executa NÃO pode dizer se acertou/errou
+    // Apenas os outros jogadores votam
+    const votingPlayers = activeGame.jogadores.filter(p => 
+      p.id !== skatista.uid && // Quem executa não vota
+      !activeGame.eliminados.includes(p.id) // Eliminados não votam
+    );
 
-        if (otherPlayers.length === 0) {
-          // Se não há outros jogadores para votar, considerar como erro automático
-          await processarErro(skatista.uid);
-        } else {
-          const votacao = {
-            jogadorVotando: skatista.uid,
-            votos: {},
-            votosNecessarios: otherPlayers.length,
-            resultado: undefined
-          };
+    console.log('🗳️ Iniciando votação automática:', {
+      jogadorExecutando: skatista.name,
+      votingPlayers: votingPlayers.map(p => p.name),
+      totalVotantes: votingPlayers.length
+    });
 
-          await updateDoc(doc(db, 'Partidas', activeGame.id), {
-            faseAtual: 'votacao',
-            votacao
-          });
-          
-          console.log('🗳️ Iniciando votação - jogadores que podem votar:', otherPlayers.length);
-        }
-      }
-    } catch (error: any) {
-      console.error('❌ Erro ao executar manobra:', error);
-      setError(error.message);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, [activeGame, skatista]);
+    // ✅ CORREÇÃO: Não incluir campo 'resultado' se for undefined
+    const votacao = {
+      jogadorVotando: skatista.uid,
+      votos: {},
+      votosNecessarios: votingPlayers.length
+      // ✅ REMOVIDO: resultado: undefined (causava erro no Firebase)
+    };
 
-  // ✅ VOTAR CORRIGIDO
-  const votar = useCallback(async (voto: 'acertou' | 'errou') => {
-    if (!activeGame || !skatista || !activeGame.votacao) return;
+    await updateDoc(doc(db, 'Partidas', activeGame.id), {
+      faseAtual: 'votacao',
+      votacao
+    });
     
-    // Verificar se pode votar (não pode ser criador nem executando)
-    if (skatista.uid === activeGame.criadorDaManobra || 
-        skatista.uid === activeGame.jogadorExecutando ||
-        activeGame.eliminados.includes(skatista.uid)) {
-      console.log('❌ Jogador não pode votar');
-      return;
-    }
+    playSound(349, 300, 'vote');
+  } catch (error: any) {
+    setError(error.message);
+    playSound(220, 500, 'error');
+    throw error;
+  } finally {
+    setLoading(false);
+  }
+}, [activeGame, skatista]);
 
-    setLoading(true);
-    try {
-      console.log('🗳️ Votando:', voto);
+// ✅ VOTAR CORRIGIDO
+const votar = useCallback(async (voto: 'acertou' | 'errou') => {
+  if (!activeGame || !skatista || !activeGame.votacao) return;
+  
+  // ✅ CORREÇÃO: Verificar se pode votar
+  if (skatista.uid === activeGame.jogadorExecutando || // Quem executa não pode votar
+      activeGame.eliminados.includes(skatista.uid) ||
+      activeGame.votacao.votos[skatista.uid]) {
+    console.log('❌ Não pode votar:', {
+      ehExecutor: skatista.uid === activeGame.jogadorExecutando,
+      eliminado: activeGame.eliminados.includes(skatista.uid),
+      jaVotou: !!activeGame.votacao.votos[skatista.uid]
+    });
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const novosVotos = {
+      ...activeGame.votacao.votos,
+      [skatista.uid]: voto
+    };
+
+    const votosRecebidos = Object.keys(novosVotos).length;
+    
+    // ✅ CORREÇÃO: Criar objeto votacao sem campos undefined
+    const votacaoUpdate: any = {
+      ...activeGame.votacao,
+      votos: novosVotos
+    };
+
+    console.log('🗳️ Voto registrado:', {
+      jogador: skatista.name,
+      voto,
+      votosRecebidos,
+      votosNecessarios: activeGame.votacao.votosNecessarios
+    });
+
+    if (votosRecebidos >= activeGame.votacao.votosNecessarios) {
+      // Todos votaram, calcular resultado
+      const votosErrou = Object.values(novosVotos).filter(v => v === 'errou').length;
+      const votosAcertou = Object.values(novosVotos).filter(v => v === 'acertou').length;
       
-      const novosVotos = {
-        ...activeGame.votacao.votos,
-        [skatista.uid]: voto
-      };
+      // ✅ CORREÇÃO: Só conta como acerto se TODOS votarem que acertou
+      const resultado = votosAcertou === activeGame.votacao.votosNecessarios ? 'acertou' : 'errou';
+      
+      // ✅ CORREÇÃO: Adicionar resultado apenas quando definido
+      votacaoUpdate.resultado = resultado;
 
-      const votosRecebidos = Object.keys(novosVotos).length;
-      const votacao = { ...activeGame.votacao, votos: novosVotos };
+      console.log('🏁 Resultado da votação:', {
+        resultado,
+        votosAcertou,
+        votosErrou,
+        votosNecessarios: activeGame.votacao.votosNecessarios,
+        unanimidade: votosAcertou === activeGame.votacao.votosNecessarios
+      });
 
-      // Verificar se todos votaram
-      if (votosRecebidos >= activeGame.votacao.votosNecessarios) {
-        const votosErrou = Object.values(novosVotos).filter(v => v === 'errou').length;
-        const votosAcertou = Object.values(novosVotos).filter(v => v === 'acertou').length;
-        
-        const resultado = votosErrou > votosAcertou ? 'errou' : 'acertou';
-        votacao.resultado = resultado;
+      // Atualizar com resultado final
+      await updateDoc(doc(db, 'Partidas', activeGame.id), {
+        votacao: votacaoUpdate
+      });
 
-        console.log('📊 Votação finalizada:', { votosErrou, votosAcertou, resultado });
-
-        // Processar resultado
+      // Processar resultado após delay
+      setTimeout(async () => {
         if (resultado === 'errou') {
           await processarErro(activeGame.jogadorExecutando);
+          playSound(220, 600, 'error');
         } else {
           await processarAcerto();
+          playSound(523, 600, 'success');
         }
-      } else {
-        // Ainda aguardando votos
-        await updateDoc(doc(db, 'Partidas', activeGame.id), {
-          votacao
-        });
-        
-        console.log('⏳ Aguardando mais votos:', votosRecebidos, '/', activeGame.votacao.votosNecessarios);
-      }
-    } catch (error: any) {
-      console.error('❌ Erro ao votar:', error);
-      setError(error.message);
-      throw error;
-    } finally {
-      setLoading(false);
+      }, 3000);
+    } else {
+      // Ainda faltam votos - atualizar sem resultado
+      await updateDoc(doc(db, 'Partidas', activeGame.id), {
+        votacao: votacaoUpdate
+      });
     }
-  }, [activeGame, skatista]);
+    
+    playSound(440, 200, 'vote');
+  } catch (error: any) {
+    setError(error.message);
+    playSound(220, 500, 'error');
+    throw error;
+  } finally {
+    setLoading(false);
+  }
+}, [activeGame, skatista]);
 
-  // Função auxiliar para próximo jogador
+
+
   const getNextPlayer = (jogadores: Player[], currentPlayer: string, eliminados: string[]): string => {
     const jogadoresAtivos = jogadores.filter(p => !eliminados.includes(p.id));
     const currentIndex = jogadoresAtivos.findIndex(p => p.id === currentPlayer);
@@ -483,41 +522,33 @@ export const useGameOfSkate = () => {
     return jogadoresAtivos[nextIndex].id;
   };
 
-  // ✅ PROCESSAR ERRO COMPLETO
   const processarErro = async (playerId: string) => {
     if (!activeGame) return;
 
     try {
-      console.log('❌ Processando erro para jogador:', playerId);
-      
       const player = activeGame.jogadores.find(p => p.id === playerId);
       if (!player) return;
 
       const letrasSequence = ['S', 'K', 'A', 'T', 'E'];
       const novasLetras = player.letras + letrasSequence[player.letras.length];
       
-      console.log('📝 Adicionando letra:', letrasSequence[player.letras.length], '- Total:', novasLetras);
-      
       const jogadoresAtualizados = activeGame.jogadores.map(p => 
         p.id === playerId ? { ...p, letras: novasLetras } : p
       );
 
       const eliminados = [...activeGame.eliminados];
-      if (novasLetras === 'SKATE') {
+      const foiEliminado = novasLetras === 'SKATE';
+      
+      if (foiEliminado) {
         eliminados.push(playerId);
-        console.log('💀 Jogador eliminado:', player.name);
+        playSound(196, 800, 'elimination');
       }
 
-      // Verificar fim de jogo
       const jogadoresAtivos = jogadoresAtualizados.filter(p => !eliminados.includes(p.id));
       const jogoFinalizado = jogadoresAtivos.length <= 1;
       const vencedor = jogoFinalizado && jogadoresAtivos.length === 1 
         ? jogadoresAtivos[0].name 
         : '';
-
-      if (jogoFinalizado) {
-        console.log('🏆 Jogo finalizado! Vencedor:', vencedor);
-      }
 
       const nextPlayer = jogoFinalizado ? '' : getNextPlayer(jogadoresAtualizados, activeGame.turnoAtual, eliminados);
 
@@ -534,25 +565,21 @@ export const useGameOfSkate = () => {
         votacao: null
       });
 
-      // Salvar no ranking se terminou
       if (jogoFinalizado) {
         await salvarRanking(jogadoresAtualizados, eliminados, vencedor);
+        playSound(523, 1500, 'victory');
       }
 
     } catch (error: any) {
-      console.error('❌ Erro ao processar erro:', error);
       setError(error.message);
       throw error;
     }
   };
 
-  // ✅ PROCESSAR ACERTO COMPLETO
   const processarAcerto = async () => {
     if (!activeGame) return;
 
     try {
-      console.log('✅ Processando acerto');
-      
       const nextPlayer = getNextPlayer(activeGame.jogadores, activeGame.turnoAtual, activeGame.eliminados);
       
       await updateDoc(doc(db, 'Partidas', activeGame.id), {
@@ -561,22 +588,16 @@ export const useGameOfSkate = () => {
         faseAtual: 'executandoManobra',
         votacao: null
       });
-      
-      console.log('🔄 Próximo jogador deve tentar a manobra');
     } catch (error: any) {
-      console.error('❌ Erro ao processar acerto:', error);
       setError(error.message);
       throw error;
     }
   };
 
-  // ✅ SALVAR RANKING COMPLETO
   const salvarRanking = async (jogadores: Player[], eliminados: string[], vencedor: string) => {
     if (!activeGame) return;
 
     try {
-      console.log('🏆 Salvando ranking');
-      
       await addDoc(collection(db, 'ranking'), {
         criador: activeGame.criadorDaManobra || 'Sistema',
         data: serverTimestamp(),
@@ -585,31 +606,34 @@ export const useGameOfSkate = () => {
         ),
         inviteId: activeGame.inviteId,
         skatePark: activeGame.skatePark,
-        vencedor
+        vencedor,
+        jogadores: jogadores.map(p => ({
+          name: p.name,
+          letras: p.letras,
+          eliminado: eliminados.includes(p.id)
+        })),
+        manobrasExecutadas: activeGame.manobrasExecutadas
       });
-      
-      console.log('✅ Ranking salvo com sucesso');
     } catch (error) {
       console.error('❌ Erro ao salvar ranking:', error);
     }
   };
 
-  // ✅ Função para limpar cache manualmente
   const clearPlayersCache = useCallback(() => {
     playersCache.current = {};
-    console.log('🧹 Cache de jogadores limpo');
   }, []);
 
   return {
     gameInvites,
     activeGame,
+    rankings,
     loading,
     error,
     getSkateParksPlayers,
     createGameInvite,
     respondToInvite,
     escolherManobra,
-    executarManobra,
+    finalizarExecucao, // ✅ NOVA FUNÇÃO
     votar,
     clearPlayersCache
   };

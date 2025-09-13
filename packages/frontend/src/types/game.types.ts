@@ -43,9 +43,26 @@ export interface GameMatch {
     jogadorVotando: string;
     votos: Record<string, 'acertou' | 'errou'>;
     votosNecessarios: number;
-    resultado?: 'acertou' | 'errou';
+    resultado?: 'acertou' | 'errou'; // ✅ OPCIONAL para evitar undefined
   } | null;
-  isFirstRound: boolean; // Primeira rodada não dá letra se errar
+  isFirstRound: boolean;
+}
+
+// ✅ NOVO: Tipo para o ranking
+export interface GameRanking {
+  id: string;
+  criador: string;
+  data: any;
+  eliminados: string[];
+  inviteId: string;
+  skatePark: string;
+  vencedor: string;
+  jogadores?: {
+    name: string;
+    letras: string;
+    eliminado: boolean;
+  }[];
+  manobrasExecutadas?: string[];
 }
 
 export type Manobra = {

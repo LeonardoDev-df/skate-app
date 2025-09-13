@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 interface GameMusicOptions {
   volume?: number;
@@ -11,68 +11,110 @@ export const useGameMusic = (options: GameMusicOptions = {}) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
-  // 🎵 Playlist de músicas de skate
+  // 🎵 Playlist de músicas de skate (usando Web Audio API para gerar tons)
   const tracks = [
     {
       name: "Skate Vibes",
-      url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", // Placeholder
-      artist: "Game Music"
+      artist: "Game Music",
+      url: "" // Vamos usar Web Audio API
     },
     {
       name: "Street Session",
-      url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", // Placeholder
-      artist: "Skate Beats"
+      artist: "Skate Beats",
+      url: ""
     },
     {
       name: "Kickflip Dreams",
-      url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", // Placeholder
-      artist: "Urban Sounds"
+      artist: "Urban Sounds",
+      url: ""
     }
   ];
 
-  useEffect(() => {
-    // Criar elemento de áudio
-    audioRef.current = new Audio();
-    audioRef.current.volume = volume;
-    audioRef.current.loop = false;
-
-    // Event listeners
-    const audio = audioRef.current;
+  // Gerar música usando Web Audio API
+  const generateMusic = useCallback((trackIndex: number) => {
+    if (typeof window === 'undefined') return;
     
-    const handleEnded = () => {
-      nextTrack();
-    };
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // Diferentes progressões para cada track
+      const progressions = [
+        [261.63, 329.63, 392.00, 523.25], // C, E, G, C
+        [220.00, 277.18, 329.63, 440.00], // A, C#, E, A
+        [196.00, 246.94, 293.66, 392.00]  // G, B, D, G
+      ];
+      
+      const progression = progressions[trackIndex] || progressions[0];
+      
+      // Criar um buffer de áudio simples
+      const duration = 30; // 30 segundos
+      const sampleRate = audioContext.sampleRate;
+      const buffer = audioContext.createBuffer(1, duration * sampleRate, sampleRate);
+      const data = buffer.getChannelData(0);
+      
+      // Gerar tons harmônicos
+      for (let i = 0; i < data.length; i++) {
+        const time = i / sampleRate;
+        const noteIndex = Math.floor(time * 2) % progression.length;
+        const frequency = progression[noteIndex];
+        
+        data[i] = Math.sin(2 * Math.PI * frequency * time) * 0.1 +
+                  Math.sin(2 * Math.PI * frequency * 2 * time) * 0.05;
+      }
+      
+      // Criar source e conectar
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = isMuted ? 0 : volume;
+      
+      source.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      return { source, gainNode, audioContext };
+    } catch (error) {
+      console.log('🎵 Erro ao gerar música:', error);
+      return null;
+    }
+  }, [volume, isMuted]);
 
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
+  const audioContextRef = useRef<any>(null);
 
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('pause', handlePause);
-
-    // Auto play se habilitado
+  useEffect(() => {
     if (autoPlay) {
       playTrack(0);
     }
 
     return () => {
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
-      audio.pause();
+      if (audioContextRef.current) {
+        audioContextRef.current.source?.stop();
+        audioContextRef.current.audioContext?.close();
+      }
     };
   }, []);
 
   const playTrack = async (trackIndex: number) => {
-    if (!audioRef.current) return;
-
     try {
-      audioRef.current.src = tracks[trackIndex].url;
+      // Parar música anterior
+      if (audioContextRef.current) {
+        audioContextRef.current.source?.stop();
+        audioContextRef.current.audioContext?.close();
+      }
+
       setCurrentTrack(trackIndex);
       
       if (!isMuted) {
-        await audioRef.current.play();
+        const musicData = generateMusic(trackIndex);
+        if (musicData) {
+          audioContextRef.current = musicData;
+          musicData.source.start();
+          setIsPlaying(true);
+        }
       }
     } catch (error) {
       console.log('🎵 Erro ao reproduzir música:', error);
@@ -80,21 +122,16 @@ export const useGameMusic = (options: GameMusicOptions = {}) => {
   };
 
   const play = async () => {
-    if (!audioRef.current) return;
-    
-    try {
-      if (!isMuted) {
-        await audioRef.current.play();
-      }
-      setIsPlaying(true);
-    } catch (error) {
-      console.log('🎵 Erro ao reproduzir:', error);
+    if (!isMuted) {
+      await playTrack(currentTrack);
     }
+    setIsPlaying(true);
   };
 
   const pause = () => {
-    if (!audioRef.current) return;
-    audioRef.current.pause();
+    if (audioContextRef.current) {
+      audioContextRef.current.source?.stop();
+    }
     setIsPlaying(false);
   };
 
@@ -109,8 +146,10 @@ export const useGameMusic = (options: GameMusicOptions = {}) => {
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
-    if (!isMuted) {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    
+    if (newMuted) {
       pause();
     } else if (isPlaying) {
       play();
@@ -118,8 +157,8 @@ export const useGameMusic = (options: GameMusicOptions = {}) => {
   };
 
   const setVolume = (newVolume: number) => {
-    if (audioRef.current) {
-      audioRef.current.volume = Math.max(0, Math.min(1, newVolume));
+    if (audioContextRef.current?.gainNode) {
+      audioContextRef.current.gainNode.gain.value = Math.max(0, Math.min(1, newVolume));
     }
   };
 
@@ -128,6 +167,8 @@ export const useGameMusic = (options: GameMusicOptions = {}) => {
     currentTrack,
     tracks,
     isMuted,
+    currentTime,
+    duration,
     play,
     pause,
     nextTrack,
