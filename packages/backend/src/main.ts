@@ -3,7 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
-import * as compression from 'compression';
+import compression from 'compression'; // ✅ CORRIGIDO
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -23,7 +23,7 @@ async function bootstrap() {
     }));
   }
   
-  app.use(compression());
+  app.use(compression()); // ✅ Agora funciona
 
   // ✅ CORS Otimizado para Desenvolvimento e Produção
   const isDevelopment = process.env.NODE_ENV !== 'env';
@@ -126,7 +126,7 @@ async function bootstrap() {
       .addServer(
         isDevelopment 
           ? 'http://localhost:3001' 
-          : process.env.BACKEND_URL || 'https://skate-app-br.vercel.app',
+          : process.env.BACKEND_URL || 'https://app-skate-lion.vercel.app',
         isDevelopment ? 'Servidor de Desenvolvimento' : 'Servidor de Produção'
       )
       .build();
@@ -144,13 +144,6 @@ async function bootstrap() {
       },
       customSiteTitle: 'Skate App API Documentation',
       customfavIcon: '/favicon.ico',
-      customJs: [
-        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
-        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.min.js',
-      ],
-      customCssUrl: [
-        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
-      ],
     });
 
     console.log(`📚 Documentação Swagger: http://localhost:${process.env.PORT || 3001}/api/docs`);
@@ -194,7 +187,7 @@ async function bootstrap() {
   }
   
   console.log(`🌐 CORS configurado para: ${validOrigins.join(', ')}`);
-  console.log(`🔧 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`�� Ambiente: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🏗️  Plataforma: ${process.env.VERCEL ? 'Vercel' : 'Local'}`);
 }
 
