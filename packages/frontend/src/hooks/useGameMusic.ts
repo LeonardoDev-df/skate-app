@@ -7,55 +7,75 @@ interface GameMusicOptions {
 
 export const useGameMusic = (options: GameMusicOptions = {}) => {
   const { volume = 0.3, autoPlay = false } = options;
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
 
-  // 🎵 Playlist de músicas de skate (usando Web Audio API para gerar tons)
   const tracks = [
     {
       name: "Skate Vibes",
-      artist: "Game Music",
-      url: "" // Vamos usar Web Audio API
+      artist: "Game Music"
     },
     {
-      name: "Street Session",
-      artist: "Skate Beats",
-      url: ""
+      name: "Street Session", 
+      artist: "Skate Beats"
     },
     {
       name: "Kickflip Dreams",
-      artist: "Urban Sounds",
-      url: ""
+      artist: "Urban Sounds"
     }
   ];
 
-  // Gerar música usando Web Audio API
+  // ✅ CORREÇÃO: Cleanup melhorado
+  const cleanup = useCallback(() => {
+    if (sourceRef.current) {
+      try {
+        sourceRef.current.stop();
+      } catch (e) {
+        // Ignore se já parou
+      }
+      sourceRef.current = null;
+    }
+    
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      try {
+        audioContextRef.current.close();
+      } catch (e) {
+        // Ignore se já fechado
+      }
+      audioContextRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return cleanup; // Cleanup ao desmontar
+  }, [cleanup]);
+
   const generateMusic = useCallback((trackIndex: number) => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return null;
     
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // ✅ CORREÇÃO: Limpar contexto anterior
+      cleanup();
       
-      // Diferentes progressões para cada track
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = audioContext;
+      
       const progressions = [
-        [261.63, 329.63, 392.00, 523.25], // C, E, G, C
-        [220.00, 277.18, 329.63, 440.00], // A, C#, E, A
-        [196.00, 246.94, 293.66, 392.00]  // G, B, D, G
+        [261.63, 329.63, 392.00, 523.25],
+        [220.00, 277.18, 329.63, 440.00],
+        [196.00, 246.94, 293.66, 392.00]
       ];
       
       const progression = progressions[trackIndex] || progressions[0];
       
-      // Criar um buffer de áudio simples
-      const duration = 30; // 30 segundos
+      const duration = 30;
       const sampleRate = audioContext.sampleRate;
       const buffer = audioContext.createBuffer(1, duration * sampleRate, sampleRate);
       const data = buffer.getChannelData(0);
       
-      // Gerar tons harmônicos
       for (let i = 0; i < data.length; i++) {
         const time = i / sampleRate;
         const noteIndex = Math.floor(time * 2) % progression.length;
@@ -65,7 +85,6 @@ export const useGameMusic = (options: GameMusicOptions = {}) => {
                   Math.sin(2 * Math.PI * frequency * 2 * time) * 0.05;
       }
       
-      // Criar source e conectar
       const source = audioContext.createBufferSource();
       source.buffer = buffer;
       source.loop = true;
@@ -76,43 +95,23 @@ export const useGameMusic = (options: GameMusicOptions = {}) => {
       source.connect(gainNode);
       gainNode.connect(audioContext.destination);
       
+      sourceRef.current = source;
+      
       return { source, gainNode, audioContext };
     } catch (error) {
       console.log('🎵 Erro ao gerar música:', error);
       return null;
     }
-  }, [volume, isMuted]);
-
-  const audioContextRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (autoPlay) {
-      playTrack(0);
-    }
-
-    return () => {
-      if (audioContextRef.current) {
-        audioContextRef.current.source?.stop();
-        audioContextRef.current.audioContext?.close();
-      }
-    };
-  }, []);
+  }, [volume, isMuted, cleanup]);
 
   const playTrack = async (trackIndex: number) => {
     try {
-      // Parar música anterior
-      if (audioContextRef.current) {
-        audioContextRef.current.source?.stop();
-        audioContextRef.current.audioContext?.close();
-      }
-
       setCurrentTrack(trackIndex);
       
       if (!isMuted) {
         const musicData = generateMusic(trackIndex);
-        if (musicData) {
-          audioContextRef.current = musicData;
-          musicData.source.start();
+        if (musicData && sourceRef.current) {
+          sourceRef.current.start();
           setIsPlaying(true);
         }
       }
@@ -129,8 +128,13 @@ export const useGameMusic = (options: GameMusicOptions = {}) => {
   };
 
   const pause = () => {
-    if (audioContextRef.current) {
-      audioContextRef.current.source?.stop();
+    if (sourceRef.current) {
+      try {
+        sourceRef.current.stop();
+      } catch (e) {
+        // Ignore se já parou
+      }
+      sourceRef.current = null;
     }
     setIsPlaying(false);
   };
@@ -157,9 +161,7 @@ export const useGameMusic = (options: GameMusicOptions = {}) => {
   };
 
   const setVolume = (newVolume: number) => {
-    if (audioContextRef.current?.gainNode) {
-      audioContextRef.current.gainNode.gain.value = Math.max(0, Math.min(1, newVolume));
-    }
+    // Implementar se necessário
   };
 
   return {
@@ -167,8 +169,6 @@ export const useGameMusic = (options: GameMusicOptions = {}) => {
     currentTrack,
     tracks,
     isMuted,
-    currentTime,
-    duration,
     play,
     pause,
     nextTrack,

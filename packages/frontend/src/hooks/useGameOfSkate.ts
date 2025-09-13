@@ -424,19 +424,13 @@ const finalizarExecucao = useCallback(async () => {
   }
 }, [activeGame, skatista]);
 
-// ✅ VOTAR CORRIGIDO
+// ✅ VOTAR CORRIGIDO - Reduzir delay para 2 segundos
 const votar = useCallback(async (voto: 'acertou' | 'errou') => {
   if (!activeGame || !skatista || !activeGame.votacao) return;
   
-  // ✅ CORREÇÃO: Verificar se pode votar
-  if (skatista.uid === activeGame.jogadorExecutando || // Quem executa não pode votar
+  if (skatista.uid === activeGame.jogadorExecutando || 
       activeGame.eliminados.includes(skatista.uid) ||
       activeGame.votacao.votos[skatista.uid]) {
-    console.log('❌ Não pode votar:', {
-      ehExecutor: skatista.uid === activeGame.jogadorExecutando,
-      eliminado: activeGame.eliminados.includes(skatista.uid),
-      jaVotou: !!activeGame.votacao.votos[skatista.uid]
-    });
     return;
   }
 
@@ -448,56 +442,39 @@ const votar = useCallback(async (voto: 'acertou' | 'errou') => {
     };
 
     const votosRecebidos = Object.keys(novosVotos).length;
-    
-    // ✅ CORREÇÃO: Criar objeto votacao sem campos undefined
     const votacaoUpdate: any = {
       ...activeGame.votacao,
       votos: novosVotos
     };
 
-    console.log('🗳️ Voto registrado:', {
-      jogador: skatista.name,
-      voto,
-      votosRecebidos,
-      votosNecessarios: activeGame.votacao.votosNecessarios
-    });
-
     if (votosRecebidos >= activeGame.votacao.votosNecessarios) {
-      // Todos votaram, calcular resultado
       const votosErrou = Object.values(novosVotos).filter(v => v === 'errou').length;
       const votosAcertou = Object.values(novosVotos).filter(v => v === 'acertou').length;
       
-      // ✅ CORREÇÃO: Só conta como acerto se TODOS votarem que acertou
       const resultado = votosAcertou === activeGame.votacao.votosNecessarios ? 'acertou' : 'errou';
-      
-      // ✅ CORREÇÃO: Adicionar resultado apenas quando definido
       votacaoUpdate.resultado = resultado;
 
-      console.log('🏁 Resultado da votação:', {
-        resultado,
-        votosAcertou,
-        votosErrou,
-        votosNecessarios: activeGame.votacao.votosNecessarios,
-        unanimidade: votosAcertou === activeGame.votacao.votosNecessarios
-      });
+      console.log('🏁 Resultado da votação:', { resultado, votosAcertou, votosErrou });
 
-      // Atualizar com resultado final
       await updateDoc(doc(db, 'Partidas', activeGame.id), {
         votacao: votacaoUpdate
       });
 
-      // Processar resultado após delay
+      // ✅ CORREÇÃO: Reduzir delay para 2 segundos
       setTimeout(async () => {
-        if (resultado === 'errou') {
-          await processarErro(activeGame.jogadorExecutando);
-          playSound(220, 600, 'error');
-        } else {
-          await processarAcerto();
-          playSound(523, 600, 'success');
+        try {
+          if (resultado === 'errou') {
+            await processarErro(activeGame.jogadorExecutando);
+            playSound(220, 600, 'error');
+          } else {
+            await processarAcerto();
+            playSound(523, 600, 'success');
+          }
+        } catch (error) {
+          console.error('❌ Erro ao processar resultado:', error);
         }
-      }, 3000);
+      }, 2000); // ✅ Reduzido de 3000 para 2000ms
     } else {
-      // Ainda faltam votos - atualizar sem resultado
       await updateDoc(doc(db, 'Partidas', activeGame.id), {
         votacao: votacaoUpdate
       });

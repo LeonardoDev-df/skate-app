@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useGameOfSkate } from '../../hooks/useGameOfSkate';
 import { useGameMusic } from '../../hooks/useGameMusic';
@@ -66,12 +66,26 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
   const creatorPlayer = game.jogadores.find(p => p.id === game.criadorDaManobra);
   const jogadoresAtivos = game.jogadores.filter(p => !game.eliminados.includes(p.id));
   
-  // ✅ CORREÇÃO: Verificar quem pode votar (NÃO pode ser quem está executando)
+  // ✅ CORREÇÃO: Verificar quem pode votar
   const canVote = game.faseAtual === 'votacao' && 
                   game.votacao && 
                   !game.votacao.votos[skatista.uid] && 
-                  skatista.uid !== game.jogadorExecutando && // ✅ PRINCIPAL CORREÇÃO
+                  skatista.uid !== game.jogadorExecutando &&
                   !game.eliminados.includes(skatista.uid);
+
+  // ✅ DEBUG: Logs para acompanhar o fluxo
+  useEffect(() => {
+    console.log('🔍 Estado do jogo:', {
+      faseAtual: game.faseAtual,
+      isMyTurn,
+      isExecuting,
+      turnoAtual: game.turnoAtual,
+      jogadorExecutando: game.jogadorExecutando,
+      manobraAtual: game.manobraAtual,
+      votacao: game.votacao,
+      skatista: skatista.name
+    });
+  }, [game.faseAtual, game.turnoAtual, game.jogadorExecutando, game.votacao]);
 
   const handleEscolherManobra = async () => {
     if (!selectedManobra) return;
@@ -338,7 +352,7 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
               </div>
             )}
 
-            {/* ✅ EXECUTAR MANOBRA - NOVA LÓGICA */}
+            {/* ✅ EXECUTAR MANOBRA */}
             {game.faseAtual === 'executandoManobra' && isExecuting && (
               <div>
                 <h3 className="text-lg font-bold text-white mb-4">
@@ -375,7 +389,7 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
               </div>
             )}
 
-            {/* ✅ VOTAÇÃO CORRIGIDA */}
+            {/* ✅ VOTAÇÃO */}
             {game.faseAtual === 'votacao' && game.votacao && (
               <div>
                 <h3 className="text-lg font-bold text-white mb-4">
@@ -391,11 +405,11 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                   </p>
                 </div>
 
-                {/* Resultado da votação */}
+                {/* ✅ RESULTADO DA VOTAÇÃO */}
                 {game.votacao.resultado && (
                   <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/50 rounded-2xl p-6 text-center mb-4 animate-pulse">
                     <div className="text-4xl mb-3">
-                                            {game.votacao.resultado === 'acertou' ? '✅' : '❌'}
+                      {game.votacao.resultado === 'acertou' ? '✅' : '❌'}
                     </div>
                     <h4 className="text-xl font-bold text-white mb-2">
                       Resultado da Votação
@@ -433,7 +447,7 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                   </div>
                 )}
 
-                {/* Votação ativa */}
+                {/* ✅ VOTAÇÃO ATIVA */}
                 {!game.votacao.resultado && (
                   <>
                     {canVote ? (
@@ -480,7 +494,6 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                           Votos: {Object.keys(game.votacao.votos).length}/{game.votacao.votosNecessarios}
                         </p>
                         
-                        {/* Progress bar */}
                         <div className="w-full bg-white/10 rounded-full h-2 mb-4">
                           <div 
                             className="bg-purple-600 h-2 rounded-full transition-all duration-300"
@@ -490,11 +503,10 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                           ></div>
                         </div>
                         
-                        {/* Lista de votantes */}
                         <div className="space-y-2">
                           {game.jogadores
                             .filter(p => !game.eliminados.includes(p.id) && 
-                                        p.id !== game.jogadorExecutando) // ✅ Executador não aparece na lista
+                                        p.id !== game.jogadorExecutando)
                             .map(player => (
                               <div key={player.id} className="flex items-center justify-between text-xs bg-white/5 rounded-lg p-2">
                                 <span className="text-white/70">{player.name}</span>
@@ -584,131 +596,6 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
           </div>
         )}
 
-      
-{game.votacao?.resultado && (
-  <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/50 rounded-2xl p-6 text-center mb-4 animate-pulse">
-    <div className="text-4xl mb-3">
-      {game.votacao.resultado === 'acertou' ? '✅' : '❌'}
-    </div>
-    <h4 className="text-xl font-bold text-white mb-2">
-      Resultado da Votação
-    </h4>
-    <p className="text-lg mb-4">
-      <span className="text-white font-medium">{executingPlayer?.name}</span>
-      <span className={`ml-2 font-bold ${
-        game.votacao.resultado === 'acertou' ? 'text-green-400' : 'text-red-400'
-      }`}>
-        {game.votacao.resultado === 'acertou' ? 'ACERTOU' : 'ERROU'}
-      </span>
-    </p>
-    
-    <div className="bg-white/10 rounded-xl p-3 mb-4">
-      <p className="text-white/70 text-sm mb-2">Votos recebidos:</p>
-      <div className="flex justify-center space-x-6">
-        <div className="text-center">
-          <p className="text-green-400 font-bold text-2xl">
-            {Object.values(game.votacao.votos).filter(v => v === 'acertou').length}
-          </p>
-          <p className="text-green-400 text-sm">✅ Acertou</p>
-        </div>
-        <div className="text-center">
-          <p className="text-red-400 font-bold text-2xl">
-            {Object.values(game.votacao.votos).filter(v => v === 'errou').length}
-          </p>
-          <p className="text-red-400 text-sm">❌ Errou</p>
-        </div>
-      </div>
-    </div>
-    
-    <p className="text-white/70 text-sm animate-bounce">
-      Processando resultado...
-    </p>
-  </div>
-)}
-
-{/* Votação ativa - só mostra se NÃO tem resultado */}
-{!game.votacao?.resultado && (
-  <>
-    {canVote ? (
-      <div>
-        <p className="text-white text-center mb-4 text-sm">
-          Você acha que {executingPlayer?.name} acertou ou errou a manobra?
-        </p>
-        
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 mb-4">
-          <p className="text-yellow-200 text-center text-xs">
-            💡 Lembre-se: Só conta como acerto se TODOS votarem que acertou!
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => handleVotar('acertou')}
-            disabled={loading}
-            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl disabled:opacity-50 hover:scale-105 transition-transform"
-          >
-            ✅ Acertou
-          </button>
-          
-          <button
-            onClick={() => handleVotar('errou')}
-            disabled={loading}
-            className="bg-gradient-to-r from-red-600 to-pink-600 text-white font-bold py-4 rounded-xl disabled:opacity-50 hover:scale-105 transition-transform"
-          >
-            ❌ Errou
-          </button>
-        </div>
-      </div>
-    ) : (
-      <div className="text-center">
-        <p className="text-white/70 mb-2 text-sm">
-          {game.votacao?.votos[skatista.uid] 
-            ? `Você votou: ${game.votacao.votos[skatista.uid] === 'acertou' ? '✅ Acertou' : '❌ Errou'}`
-            : skatista.uid === game.jogadorExecutando
-            ? '🛹 Você executou a manobra - aguarde a votação'
-            : '⏳ Aguardando outros jogadores votarem...'
-          }
-        </p>
-        <p className="text-purple-200 text-xs mb-4">
-          Votos: {Object.keys(game.votacao?.votos || {}).length}/{game.votacao?.votosNecessarios || 0}
-        </p>
-        
-        {/* Progress bar */}
-        <div className="w-full bg-white/10 rounded-full h-2 mb-4">
-          <div 
-            className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-            style={{ 
-              width: `${game.votacao?.votosNecessarios ? (Object.keys(game.votacao.votos).length / game.votacao.votosNecessarios) * 100 : 0}%` 
-            }}
-          ></div>
-        </div>
-        
-        {/* Lista de votantes */}
-        <div className="space-y-2">
-                  {game.jogadores
-                    .filter(p => !game.eliminados.includes(p.id) && 
-                                p.id !== game.jogadorExecutando)
-                    .map(player => (
-                      <div key={player.id} className="flex items-center justify-between text-xs bg-white/5 rounded-lg p-2">
-                        <span className="text-white/70">{player.name}</span>
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          game.votacao?.votos[player.id] 
-                            ? 'bg-green-500/20 text-green-200' 
-                            : 'bg-yellow-500/20 text-yellow-200'
-                        }`}>
-                          {game.votacao?.votos[player.id] 
-                            ? `✓ ${game.votacao.votos[player.id] === 'acertou' ? 'Acertou' : 'Errou'}` 
-                            : '⏳ Aguardando'}
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Bottom padding */}
         <div className="h-20"></div>
       </div>
     </div>
