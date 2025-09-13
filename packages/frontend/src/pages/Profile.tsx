@@ -1,10 +1,27 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { Link } from 'react-router-dom';
 
 export const Profile: React.FC = () => {
-  const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'profile' | 'stats' | 'settings'>('profile');
+  const { skatista, updateSkatistaProfile, logout } = useAuth();
+  const [editing, setEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    name: skatista?.name || '',
+    image: skatista?.image || 'sk10.jpg'
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await updateSkatistaProfile(formData);
+      setEditing(false);
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -14,254 +31,204 @@ export const Profile: React.FC = () => {
     }
   };
 
+  if (!skatista) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="text-4xl mb-4">🔒</div>
+          <p>Faça login para ver seu perfil</p>
+          <Link to="/login" className="text-purple-300 hover:text-white">
+            Fazer Login →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-4 mb-4">
-            <Link to="/" className="text-blue-600 hover:text-blue-800">
-              ← Voltar
-            </Link>
-            <h1 className="text-3xl font-bold text-gray-900">👤 Perfil</h1>
-          </div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900">
+      {/* Header */}
+      <div className="relative overflow-hidden pt-12 pb-8">
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20"></div>
+        <div className="relative text-center px-4">
+          <div className="text-4xl mb-4">👤</div>
+          <h1 className="text-3xl font-bold text-white mb-2">
+            Meu Perfil
+          </h1>
+          <p className="text-purple-200">
+            Gerencie suas informações
+          </p>
         </div>
+      </div>
 
-        {/* Profile Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex items-center space-x-6">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
+      <div className="px-4">
+        {/* Profile Card */}
+        <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-6 mb-6">
+          {/* Avatar */}
+          <div className="text-center mb-6">
+            <div className="w-24 h-24 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-white text-3xl font-bold">
+                {skatista.name.charAt(0).toUpperCase()}
+              </span>
             </div>
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-gray-900">
-                {user?.displayName || 'Skatista'}
-              </h2>
-              <p className="text-gray-600">{user?.email}</p>
-              <div className="flex items-center space-x-4 mt-2">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  🟢 Online
-                </span>
-                <span className="text-sm text-gray-500">
-                  Membro desde {new Date().getFullYear()}
-                </span>
+            <div className="flex items-center justify-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${
+                skatista.status === 'Online' ? 'bg-green-400' : 'bg-gray-400'
+              }`}></div>
+              <span className="text-white text-sm">{skatista.status}</span>
+            </div>
+          </div>
+
+          {/* Profile Info */}
+          {editing ? (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white text-sm font-medium mb-2">
+                  Nome
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
               </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Sair
-            </button>
-          </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-lg shadow-sm">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8 px-6">
-              {[
-                { id: 'profile', label: 'Perfil', icon: '👤' },
-                { id: 'stats', label: 'Estatísticas', icon: '📊' },
-                { id: 'settings', label: 'Configurações', icon: '⚙️' },
-              ].map((tab) => (
+              <div className="flex space-x-3">
                 <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-xl disabled:opacity-50"
                 >
-                  {tab.icon} {tab.label}
+                  {loading ? 'Salvando...' : 'Salvar'}
                 </button>
-              ))}
-            </nav>
+                <button
+                  onClick={() => setEditing(false)}
+                  className="flex-1 bg-white/10 border border-white/20 text-white font-bold py-3 rounded-xl"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-white mb-1">
+                  {skatista.name}
+                </h2>
+                <p className="text-purple-200 text-sm">
+                  {skatista.email}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setEditing(true)}
+                className="w-full bg-white/10 border border-white/20 text-white font-medium py-3 rounded-xl hover:bg-white/20 transition-colors"
+              >
+                ✏️ Editar Perfil
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Stats */}
+        <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-6 mb-6">
+          <h3 className="text-xl font-bold text-white mb-4">📊 Estatísticas</h3>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white/10 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-white">
+                {skatista.spots?.length || 0}
+              </div>
+              <div className="text-purple-200 text-sm">Spots Salvos</div>
+            </div>
+            
+            <div className="bg-white/10 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-white">
+                {skatista.createdAt ? 
+                  Math.floor((Date.now() - new Date(skatista.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+                  : 0
+                }
+              </div>
+              <div className="text-purple-200 text-sm">Dias no App</div>
+            </div>
           </div>
+        </div>
 
-          <div className="p-6">
-            {activeTab === 'profile' && (
-              <div className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">
-                      Informações Pessoais
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Nome
-                        </label>
-                        <input
-                          type="text"
-                          defaultValue={user?.displayName || ''}
-                          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Email
-                        </label>
-                        <input
-                          type="email"
-                          defaultValue={user?.email || ''}
-                          disabled
-                          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 text-gray-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Cidade
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Sua cidade"
-                          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">
-                      Preferências de Skate
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Nível de Experiência
-                        </label>
-                        <select className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                          <option>Iniciante</option>
-                          <option>Intermediário</option>
-                          <option>Avançado</option>
-                          <option>Profissional</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Estilo Preferido
-                        </label>
-                        <select className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                          <option>Street</option>
-                          <option>Vert</option>
-                          <option>Park</option>
-                          <option>Freestyle</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Skatepark Favorito
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Seu skatepark favorito"
-                          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                    Salvar Alterações
-                  </button>
-                </div>
+        {/* Quick Actions */}
+        <div className="space-y-4 mb-8">
+          <Link
+            to="/my-spots"
+            className="block bg-white/10 backdrop-blur-sm rounded-xl p-4 hover:bg-white/20 transition-colors"
+          >
+            <div className="flex items-center space-x-3">
+              <span className="text-2xl">📍</span>
+              <div className="flex-1">
+                <h4 className="text-white font-medium">Meus Spots</h4>
+                <p className="text-purple-200 text-sm">
+                  {skatista.spots?.length || 0} spots salvos
+                </p>
               </div>
-            )}
+              <span className="text-white/70">→</span>
+            </div>
+          </Link>
 
-            {activeTab === 'stats' && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Suas Estatísticas
-                </h3>
-                
-                <div className="grid md:grid-cols-3 gap-6">
-                  <div className="bg-blue-50 rounded-lg p-6 text-center">
-                    <div className="text-3xl font-bold text-blue-600 mb-2">0</div>
-                    <div className="text-sm text-gray-600">Partidas Jogadas</div>
-                  </div>
-                  <div className="bg-green-50 rounded-lg p-6 text-center">
-                    <div className="text-3xl font-bold text-green-600 mb-2">0</div>
-                    <div className="text-sm text-gray-600">Vitórias</div>
-                  </div>
-                  <div className="bg-purple-50 rounded-lg p-6 text-center">
-                    <div className="text-3xl font-bold text-purple-600 mb-2">0</div>
-                    <div className="text-sm text-gray-600">Manobras Aprendidas</div>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 rounded-lg p-6 text-center">
-                  <div className="text-4xl mb-4">📊</div>
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">
-                    Estatísticas em Desenvolvimento
-                  </h4>
-                  <p className="text-gray-600">
-                    Suas estatísticas de jogo aparecerão aqui conforme você joga e aprende novas manobras.
-                  </p>
-                </div>
+          <Link
+            to="/skateparks"
+            className="block bg-white/10 backdrop-blur-sm rounded-xl p-4 hover:bg-white/20 transition-colors"
+          >
+            <div className="flex items-center space-x-3">
+              <span className="text-2xl">��️</span>
+              <div className="flex-1">
+                <h4 className="text-white font-medium">Explorar Pistas</h4>
+                <p className="text-purple-200 text-sm">Descobrir novos spots</p>
               </div>
-            )}
+              <span className="text-white/70">→</span>
+            </div>
+          </Link>
 
-            {activeTab === 'settings' && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Configurações
-                </h3>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium text-gray-900">Notificações por Email</h4>
-                      <p className="text-sm text-gray-600">Receber notificações sobre convites e atualizações</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </div>
+          <button
+            onClick={handleLogout}
+            className="w-full bg-red-500/20 border border-red-500/50 text-red-200 font-medium py-4 rounded-xl hover:bg-red-500/30 transition-colors"
+          >
+            🚪 Sair da Conta
+          </button>
+        </div>
 
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium text-gray-900">Perfil Público</h4>
-                      <p className="text-sm text-gray-600">Permitir que outros usuários vejam seu perfil</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium text-gray-900">Localização</h4>
-                      <p className="text-sm text-gray-600">Usar localização para encontrar skateparks próximos</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="border-t pt-6">
-                  <h4 className="text-lg font-medium text-gray-900 mb-4">Zona de Perigo</h4>
-                  <div className="space-y-4">
-                    <button className="w-full bg-yellow-600 text-white py-2 px-4 rounded-lg hover:bg-yellow-700 transition-colors">
-                      Resetar Estatísticas
-                    </button>
-                    <button className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors">
-                      Excluir Conta
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+        {/* Account Info */}
+        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 mb-8">
+          <h4 className="text-white font-medium mb-2">ℹ️ Informações da Conta</h4>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-purple-200">ID:</span>
+              <span className="text-white font-mono text-xs">
+                {skatista.uid.slice(0, 8)}...
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-purple-200">Criado em:</span>
+              <span className="text-white">
+                {skatista.createdAt ? 
+                  new Date(skatista.createdAt).toLocaleDateString('pt-BR')
+                  : 'N/A'
+                }
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-purple-200">Última atualização:</span>
+              <span className="text-white">
+                {skatista.updatedAt ? 
+                  new Date(skatista.updatedAt).toLocaleDateString('pt-BR')
+                  : 'N/A'
+                }
+              </span>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Bottom Navigation Space */}
+      <div className="h-20"></div>
     </div>
   );
 };

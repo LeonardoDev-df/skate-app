@@ -1,36 +1,43 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-
-// Pages
+import { BottomNavigation } from './components/layout/BottomNavigation';
 import { Home } from './pages/Home';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';  // ✅ Verificar se está importado
 import { Game } from './pages/Game';
 import { Skateparks } from './pages/Skateparks';
+import { MySpots } from './pages/MySpots';
 import { Tutorials } from './pages/Tutorials';
 import { Profile } from './pages/Profile';
 import { NotFound } from './pages/NotFound';
-
-// Components
-import { Navbar } from './components/Navbar';
-import { Footer } from './components/Footer';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen flex flex-col">
-          <Navbar />
-          <main className="flex-1">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/game" element={<Game />} />
-              <Route path="/skateparks" element={<Skateparks />} />
-              <Route path="/tutorials" element={<Tutorials />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
-          <Footer />
+        <div className="min-h-screen bg-slate-900">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />  {/* ✅ Verificar se está aqui */}
+            <Route path="/game" element={<Game />} />
+            <Route path="/skateparks" element={<Skateparks />} />
+            <Route path="/my-spots" element={<MySpots />} />
+            <Route path="/tutorials" element={<Tutorials />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          
+          {/* Bottom Navigation */}
+          <Routes>
+            <Route path="/" element={<BottomNavigation />} />
+            <Route path="/skateparks" element={<BottomNavigation />} />
+            <Route path="/my-spots" element={<BottomNavigation />} />
+            <Route path="/game" element={<BottomNavigation />} />
+            <Route path="/tutorials" element={<BottomNavigation />} />
+            <Route path="/profile" element={<BottomNavigation />} />
+          </Routes>
         </div>
       </Router>
     </AuthProvider>

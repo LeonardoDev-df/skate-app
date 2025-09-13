@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react';
-import { apiService, Skatepark } from '../services/api';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
-export const useSkateparks = (city?: string) => {
+interface Skatepark {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  region: string;
+}
+
+export const useSkateparks = () => {
   const [skateparks, setSkateparks] = useState<Skatepark[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -11,67 +20,45 @@ export const useSkateparks = (city?: string) => {
       try {
         setLoading(true);
         setError(null);
+
+        // Buscar o documento principal do SkatePark
+        const skateParkDoc = await getDoc(doc(db, 'SkatePark', 'rrpDJ2CRrrskTQ0hx97o'));
         
-        const response = await apiService.getSkateparks(city);
-        setSkateparks(response.skateparks || []);
+        if (skateParkDoc.exists()) {
+          const data = skateParkDoc.data();
+          const spots = data.Spot || [];
+          
+          const allSkateparks: Skatepark[] = [];
+          
+          // Processar cada região
+          spots.forEach((spot: any, spotIndex: number) => {
+            if (spot.Brasilia && Array.isArray(spot.Brasilia)) {
+              spot.Brasilia.forEach((park: any, parkIndex: number) => {
+                allSkateparks.push({
+                  id: `${spotIndex}-${parkIndex}`,
+                  name: park.City || `Skatepark ${parkIndex + 1}`,
+                  address: park.Adress || 'Endereço não informado',
+                  city: park.City || 'Brasília',
+                  region: 'Brasília'
+                });
+              });
+            }
+          });
+          
+          setSkateparks(allSkateparks);
+        } else {
+          setError('Dados dos skateparks não encontrados');
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar skateparks');
-        setSkateparks([]);
+        console.error('Erro ao buscar skateparks:', err);
+        setError('Erro ao carregar skateparks');
       } finally {
         setLoading(false);
       }
     };
 
     fetchSkateparks();
-  }, [city]);
+  }, []);
 
-  const refetch = () => {
-    const fetchSkateparks = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await apiService.getSkateparks(city);
-        setSkateparks(response.skateparks || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar skateparks');
-        setSkateparks([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSkateparks();
-  };
-
-  return { skateparks, loading, error, refetch };
-};
-
-export const useSkatepark = (id: string) => {
-  const [skatepark, setSkatepark] = useState<Skatepark | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchSkatepark = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await apiService.getSkatepark(id);
-        setSkatepark(response.skatepark || null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar skatepark');
-        setSkatepark(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (id) {
-      fetchSkatepark();
-    }
-  }, [id]);
-
-  return { skatepark, loading, error };
+  return { skateparks, loading, error };
 };
