@@ -3,9 +3,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useGameOfSkate } from '../../hooks/useGameOfSkate';
 import { useGameMusic } from '../../hooks/useGameMusic';
 import { GameMatch } from '../../types/game.types';
+import { GameFinished } from '../../pages/GameFinished';
 
 interface ActiveGameProps {
   game: GameMatch;
+  onViewRanking?: () => void;
 }
 
 // Manobras organizadas por dificuldade
@@ -44,7 +46,7 @@ const ALL_MANOBRAS = [
   ...MANOBRAS.Avançado
 ];
 
-export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
+export const ActiveGame: React.FC<ActiveGameProps> = ({ game, onViewRanking }) => {
   const { skatista } = useAuth();
   const { escolherManobra, finalizarExecucao, votar, loading } = useGameOfSkate();
   const { isPlaying, currentTrack, tracks, isMuted, play, pause, nextTrack, toggleMute } = useGameMusic({ 
@@ -66,7 +68,7 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
   const creatorPlayer = game.jogadores.find(p => p.id === game.criadorDaManobra);
   const jogadoresAtivos = game.jogadores.filter(p => !game.eliminados.includes(p.id));
   
-  // ✅ CORREÇÃO: Verificar quem pode votar
+  // ✅ Verificar quem pode votar
   const canVote = game.faseAtual === 'votacao' && 
                   game.votacao && 
                   !game.votacao.votos[skatista.uid] && 
@@ -79,13 +81,17 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
       faseAtual: game.faseAtual,
       isMyTurn,
       isExecuting,
+      isCreator,
       turnoAtual: game.turnoAtual,
       jogadorExecutando: game.jogadorExecutando,
       manobraAtual: game.manobraAtual,
+      manobraEstabelecida: game.manobraEstabelecida,
+      criadorDaManobra: game.criadorDaManobra,
       votacao: game.votacao,
-      skatista: skatista.name
+      skatista: skatista.name,
+      jogoFinalizado: game.jogoFinalizado
     });
-  }, [game.faseAtual, game.turnoAtual, game.jogadorExecutando, game.votacao]);
+  }, [game.faseAtual, game.turnoAtual, game.jogadorExecutando, game.votacao, game.jogoFinalizado]);
 
   const handleEscolherManobra = async () => {
     if (!selectedManobra) return;
@@ -102,58 +108,14 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
     await votar(voto);
   };
 
-  // Jogo finalizado
+  // ✅ Jogo finalizado - usar componente GameFinished
   if (game.jogoFinalizado) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 p-4">
-        <div className="max-w-md mx-auto">
-          <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-6 text-center">
-            <div className="text-6xl mb-4 animate-bounce">🏆</div>
-            <h2 className="text-2xl font-bold text-white mb-4">
-              Jogo Finalizado!
-            </h2>
-            <p className="text-xl text-green-400 mb-6 font-bold">
-              🎉 Vencedor: {game.vencedor}
-            </p>
-            
-            <div className="bg-white/5 rounded-2xl p-4 mb-6">
-              <h3 className="text-lg font-bold text-white mb-3">📊 Resultado Final</h3>
-              <div className="space-y-3">
-                {game.jogadores.map(player => (
-                  <div key={player.id} className="flex justify-between items-center p-3 bg-white/5 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm font-bold">
-                          {player.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <span className="text-white font-medium text-sm">{player.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className={`text-xl font-bold ${
-                        game.eliminados.includes(player.id) ? 'text-red-400' : 'text-green-400'
-                      }`}>
-                        {player.letras || (game.vencedor === player.name ? '👑' : '—')}
-                      </span>
-                      <p className="text-xs text-white/70">
-                        {game.eliminados.includes(player.id) ? 'Eliminado' : 
-                         game.vencedor === player.name ? 'Vencedor' : 'Participou'}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-3 px-6 rounded-xl hover:scale-105 transition-transform"
-            >
-              🎮 Novo Jogo
-            </button>
-          </div>
-        </div>
-      </div>
+      <GameFinished 
+        game={game}
+        onViewRanking={() => onViewRanking?.()}
+        onNewGame={() => window.location.reload()}
+      />
     );
   }
 
@@ -217,11 +179,14 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
 
           {game.manobraAtual && (
             <div className="bg-white/10 rounded-xl p-3 text-center">
-              <p className="text-white/70 text-xs mb-1">Manobra Atual:</p>
+              <p className="text-white/70 text-xs mb-1">
+                {game.manobraEstabelecida ? 'Manobra Estabelecida:' : 'Tentativa de Manobra:'}
+              </p>
               <p className="text-lg font-bold text-white">{game.manobraAtual}</p>
               {creatorPlayer && (
                 <p className="text-purple-200 text-xs mt-1">
                   Por: {creatorPlayer.name}
+                  {game.manobraEstabelecida && <span className="text-green-400 ml-2">✅ Aceita</span>}
                 </p>
               )}
             </div>
@@ -286,6 +251,12 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                   🎯 Sua vez! Escolha uma manobra
                 </h3>
                 
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 mb-4">
+                  <p className="text-blue-200 text-center text-sm">
+                    💡 Você está criando uma nova manobra. Se errar, não ganha letra!
+                  </p>
+                </div>
+                
                 <button
                   onClick={() => setShowManobrasList(!showManobrasList)}
                   className="w-full bg-white/10 border border-white/20 text-white font-medium py-3 rounded-xl mb-4 hover:bg-white/20 transition-colors"
@@ -313,7 +284,7 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
 
                     <div className="space-y-2">
                       {MANOBRAS[selectedCategory]
-                        .filter(manobra => !game.manobrasExecutadas.includes(manobra.name))
+                        .filter(manobra => !(game.manobrasExecutadas || []).includes(manobra.name))
                         .map(manobra => (
                           <button
                             key={manobra.name}
@@ -354,7 +325,7 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
 
             {/* ✅ EXECUTAR MANOBRA */}
             {game.faseAtual === 'executandoManobra' && isExecuting && (
-              <div>
+                            <div>
                 <h3 className="text-lg font-bold text-white mb-4">
                   🛹 Execute: {game.manobraAtual}
                 </h3>
@@ -370,14 +341,26 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                   );
                 })()}
                 
-                <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 mb-6">
-                  <p className="text-orange-200 text-center text-sm">
-                    ⚠️ Execute a manobra e clique em "Finalizar"
-                  </p>
-                  <p className="text-orange-200 text-center text-xs mt-1">
-                    Os outros jogadores irão votar se você acertou ou errou
-                  </p>
-                </div>
+                {/* ✅ NOVO: Mostrar se é criador ou tentando repetir */}
+                {isCreator ? (
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 mb-6">
+                    <p className="text-blue-200 text-center text-sm">
+                      🎯 Você criou esta manobra. Se errar, não ganha letra!
+                    </p>
+                    <p className="text-blue-200 text-center text-xs mt-1">
+                      Se acertar, outros jogadores terão que repetir
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 mb-6">
+                    <p className="text-orange-200 text-center text-sm">
+                      ⚠️ Você está tentando repetir uma manobra estabelecida
+                    </p>
+                    <p className="text-orange-200 text-center text-xs mt-1">
+                      Se errar, você ganha uma letra!
+                    </p>
+                  </div>
+                )}
 
                 <button
                   onClick={handleFinalizarExecucao}
@@ -403,6 +386,13 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                   <p className="text-purple-200 text-center text-xs mt-1">
                     <strong>"{game.manobraAtual}"</strong>
                   </p>
+                  {/* ✅ NOVO: Mostrar se é criador ou tentando repetir */}
+                  <p className="text-purple-200 text-center text-xs mt-1">
+                    {isCreator ? 
+                      '🎯 Criador da manobra (não ganha letra se errar)' : 
+                      '⚠️ Tentando repetir manobra (ganha letra se errar)'
+                    }
+                  </p>
                 </div>
 
                 {/* ✅ RESULTADO DA VOTAÇÃO */}
@@ -422,6 +412,25 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                         {game.votacao.resultado === 'acertou' ? 'ACERTOU' : 'ERROU'}
                       </span>
                     </p>
+                    
+                    {/* ✅ NOVO: Explicar consequência */}
+                    <div className="bg-white/10 rounded-xl p-3 mb-4">
+                      <p className="text-white/70 text-sm mb-2">Consequência:</p>
+                      <p className={`text-sm font-medium ${
+                        game.votacao.resultado === 'acertou' ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        {game.votacao.resultado === 'acertou' ? 
+                          (isCreator ? 
+                            '🎯 Manobra estabelecida! Próximo jogador deve repetir' : 
+                            '✅ Acertou! Próximo jogador tenta a mesma manobra'
+                          ) : 
+                          (isCreator ? 
+                            '❌ Falhou na criação. Próximo jogador tenta criar' : 
+                            '❌ Falhou na repetição. Ganha uma letra!'
+                          )
+                        }
+                      </p>
+                    </div>
                     
                     <div className="bg-white/10 rounded-xl p-3 mb-4">
                       <p className="text-white/70 text-sm mb-2">Votos recebidos:</p>
@@ -459,6 +468,12 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                         <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 mb-4">
                           <p className="text-yellow-200 text-center text-xs">
                             💡 Lembre-se: Só conta como acerto se TODOS votarem que acertou!
+                          </p>
+                          <p className="text-yellow-200 text-center text-xs mt-1">
+                            {isCreator ? 
+                              '🎯 Criador não ganha letra se errar' : 
+                              '⚠️ Ganha letra se errar (tentando repetir)'
+                            }
                           </p>
                         </div>
                         
@@ -546,7 +561,9 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                 
                 {game.manobraAtual && (
                   <div className="bg-white/5 rounded-xl p-3">
-                    <p className="text-white/70 text-xs mb-1">Manobra atual:</p>
+                    <p className="text-white/70 text-xs mb-1">
+                      {game.manobraEstabelecida ? 'Manobra estabelecida:' : 'Tentativa de manobra:'}
+                    </p>
                     <p className="text-lg font-bold text-white">{game.manobraAtual}</p>
                     {(() => {
                       const manobraInfo = ALL_MANOBRAS.find(m => m.name === game.manobraAtual);
@@ -554,6 +571,9 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
                         <p className="text-white/70 text-xs mt-2">{manobraInfo.description}</p>
                       );
                     })()}
+                    {game.manobraEstabelecida && (
+                      <p className="text-green-400 text-xs mt-1">✅ Manobra aceita por todos</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -565,8 +585,8 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
         <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4">
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-xl font-bold text-blue-400">{game.manobrasExecutadas.length}</p>
-              <p className="text-white/70 text-xs">Manobras</p>
+              <p className="text-xl font-bold text-blue-400">{(game.manobrasExecutadas || []).length}</p>
+              <p className="text-white/70 text-xs">Estabelecidas</p>
             </div>
             <div>
               <p className="text-xl font-bold text-green-400">{jogadoresAtivos.length}</p>
@@ -580,11 +600,28 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
         </div>
 
         {/* Histórico de Manobras */}
-        {game.manobrasExecutadas.length > 0 && (
+        {(game.manobrasExecutadas || []).length > 0 && (
           <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4">
-            <h4 className="text-white font-medium mb-3 text-sm">🛹 Histórico de Manobras</h4>
+            <h4 className="text-white font-medium mb-3 text-sm">🛹 Manobras Estabelecidas</h4>
             <div className="flex flex-wrap gap-2">
-              {game.manobrasExecutadas.map((manobra, index) => (
+              {(game.manobrasExecutadas || []).map((manobra, index) => (
+                <span
+                  key={index}
+                  className="bg-green-500/20 text-green-200 px-2 py-1 rounded-full text-xs hover:bg-green-500/30 transition-colors border border-green-500/30"
+                >
+                  ✅ {manobra}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tentativas de Manobras */}
+        {(game.manobrasTentadas || []).length > 0 && (
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4">
+            <h4 className="text-white font-medium mb-3 text-sm">🎯 Todas as Tentativas</h4>
+            <div className="flex flex-wrap gap-2">
+              {(game.manobrasTentadas || []).map((manobra, index) => (
                 <span
                   key={index}
                   className="bg-purple-500/20 text-purple-200 px-2 py-1 rounded-full text-xs hover:bg-purple-500/30 transition-colors"
@@ -601,3 +638,4 @@ export const ActiveGame: React.FC<ActiveGameProps> = ({ game }) => {
     </div>
   );
 };
+              

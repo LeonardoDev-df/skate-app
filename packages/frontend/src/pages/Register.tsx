@@ -21,6 +21,8 @@ export const Register: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedLGPD, setAcceptedLGPD] = useState(false);
+  const [showLGPDModal, setShowLGPDModal] = useState(false);
   
   const { register } = useAuth();
   const { skateparks, loading: skateparksLoading } = useSkateparks();
@@ -52,7 +54,14 @@ export const Register: React.FC = () => {
     setError('');
     setSuccess('');
 
-    // Validações
+    // Validação LGPD
+    if (!acceptedLGPD) {
+      setError('Você deve aceitar os termos de privacidade para continuar');
+      setLoading(false);
+      return;
+    }
+
+    // Validações existentes
     if (!formData.name.trim()) {
       setError('Nome é obrigatório');
       setLoading(false);
@@ -99,7 +108,6 @@ export const Register: React.FC = () => {
     try {
       setSuccess('Criando sua conta...');
       
-      // Registrar usuário com spots selecionados
       await register(formData.email, formData.password, formData.name, selectedSpots);
       
       setSuccess('Conta criada com sucesso! Redirecionando...');
@@ -190,7 +198,7 @@ export const Register: React.FC = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white transition-colors"
                 >
-                  {showPassword ? '��' : '👁️'}
+                  {showPassword ? '🙈' : '👁️'}
                 </button>
               </div>
             </div>
@@ -291,6 +299,36 @@ export const Register: React.FC = () => {
               )}
             </div>
 
+            {/* Termo LGPD */}
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+              <div className="flex items-start space-x-3">
+                <input
+                  type="checkbox"
+                  id="lgpd"
+                  checked={acceptedLGPD}
+                  onChange={(e) => setAcceptedLGPD(e.target.checked)}
+                  className="mt-1 w-4 h-4 text-purple-600 bg-white/10 border-white/20 rounded focus:ring-purple-500"
+                  required
+                />
+                <div className="flex-1">
+                  <label htmlFor="lgpd" className="text-blue-200 text-sm">
+                    Eu concordo com os{' '}
+                    <button
+                      type="button"
+                      onClick={() => setShowLGPDModal(true)}
+                      className="text-purple-300 underline hover:text-white"
+                    >
+                      termos de privacidade e proteção de dados
+                    </button>
+                    {' '}*
+                  </label>
+                  <p className="text-blue-200/70 text-xs mt-1">
+                    🔒 Seus dados estão seguros conosco. Aplicável para usuários de 12+ anos.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Success Message */}
             {success && (
               <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3">
@@ -319,7 +357,7 @@ export const Register: React.FC = () => {
             {/* Register Button */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !acceptedLGPD}
               className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all duration-200"
             >
               {loading ? (
@@ -348,6 +386,86 @@ export const Register: React.FC = () => {
         </div>
       </div>
 
+      {/* Modal LGPD */}
+      {showLGPDModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
+            <div className="text-center mb-4">
+              <div className="text-4xl mb-2">🔒</div>
+              <h3 className="text-xl font-bold text-white mb-2">
+                Termos de Privacidade
+              </h3>
+              <p className="text-white/70 text-sm">
+                Lei Geral de Proteção de Dados (LGPD)
+              </p>
+            </div>
+
+            <div className="space-y-4 text-sm text-white/80">
+              <div>
+                <h4 className="font-medium text-white mb-2">📋 Coleta de Dados</h4>
+                <p>
+                  Coletamos apenas os dados necessários para o funcionamento do app: 
+                  nome, email e skateparks favoritos.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="font-medium text-white mb-2">🛡️ Proteção</h4>
+                <p>
+                  Seus dados são criptografados e armazenados com segurança. 
+                  Não compartilhamos informações com terceiros.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="font-medium text-white mb-2">👶 Idade Mínima</h4>
+                <p>
+                  Este serviço é destinado a usuários de 12 anos ou mais. 
+                  Menores de idade devem ter autorização dos responsáveis.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="font-medium text-white mb-2">✅ Seus Direitos</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Acessar seus dados a qualquer momento</li>
+                  <li>Solicitar correção de informações</li>
+                  <li>Excluir sua conta e dados</li>
+                                    <li>Portabilidade dos dados</li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="font-medium text-white mb-2">📧 Contato</h4>
+                <p>
+                  Para exercer seus direitos ou tirar dúvidas sobre privacidade, 
+                  entre em contato conosco através do app.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              <button
+                onClick={() => {
+                  setAcceptedLGPD(true);
+                  setShowLGPDModal(false);
+                }}
+                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-3 rounded-xl"
+              >
+                ✅ Aceito os Termos
+              </button>
+              
+              <button
+                onClick={() => setShowLGPDModal(false)}
+                className="w-full bg-white/10 border border-white/20 text-white font-medium py-3 rounded-xl"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bottom Decoration */}
       <div className="px-4 pb-8">
         <div className="text-center">
@@ -357,7 +475,7 @@ export const Register: React.FC = () => {
             <span className="animate-bounce delay-200">⚡</span>
           </div>
           <p className="text-white/50 text-xs">
-            Skate App © 2024 - Sua pista digital
+            Skate App © 2025 - Sua pista digital
           </p>
         </div>
       </div>

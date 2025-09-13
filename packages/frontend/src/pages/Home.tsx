@@ -22,7 +22,7 @@ export const Home: React.FC = () => {
               Sua pista digital para o mundo do skate
             </p>
             
-            {/* User Welcome */}
+            {/* User Welcome - Só para logados */}
             {skatista && (
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 mb-6">
                 <div className="flex items-center justify-center space-x-3">
@@ -42,11 +42,34 @@ export const Home: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* Login CTA - Só para não logados */}
+            {!skatista && (
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 mb-6">
+                <p className="text-white mb-3">
+                  Faça login para acessar todas as funcionalidades!
+                </p>
+                <div className="flex space-x-3">
+                  <Link
+                    to="/login"
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-2 px-4 rounded-xl"
+                  >
+                    Entrar
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="flex-1 bg-white/10 border border-white/20 text-white font-medium py-2 px-4 rounded-xl"
+                  >
+                    Cadastrar
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Quick Stats */}
+      {/* Quick Stats - Condicional */}
       <div className="px-4 -mt-4 mb-8">
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 text-center">
@@ -55,57 +78,76 @@ export const Home: React.FC = () => {
             </div>
             <div className="text-purple-200 text-sm">Pistas</div>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 text-center">
-            <div className="text-2xl font-bold text-white">
-              {skatista?.spots?.length || 0}
+          
+          {/* Meus Spots - Só para logados */}
+          {skatista ? (
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 text-center">
+              <div className="text-2xl font-bold text-white">
+                {skatista?.spots?.length || 0}
+              </div>
+              <div className="text-purple-200 text-sm">Meus Spots</div>
             </div>
-            <div className="text-purple-200 text-sm">Meus Spots</div>
-          </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 text-center">
-            <div className="text-2xl font-bold text-green-400">●</div>
-            <div className="text-purple-200 text-sm">Online</div>
-          </div>
+          ) : (
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 text-center">
+              <div className="text-2xl font-bold text-white">🔒</div>
+              <div className="text-purple-200 text-sm">Faça Login</div>
+            </div>
+          )}
+          
+          {/* Online Status - Só para logados */}
+          {skatista ? (
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 text-center">
+              <div className="text-2xl font-bold text-green-400">●</div>
+              <div className="text-purple-200 text-sm">Online</div>
+            </div>
+          ) : (
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 text-center">
+              <div className="text-2xl font-bold text-gray-400">●</div>
+              <div className="text-purple-200 text-sm">Offline</div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Actions */}
       <div className="px-4 mb-8">
         <div className="grid gap-4">
-          {/* Game of Skate */}
-          <Link
-            to="/game"
-            className="group bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 shadow-lg active:scale-95 transition-all duration-200"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="text-4xl group-active:scale-110 transition-transform">🎮</div>
-              <div className="flex-1">
-                <h3 className="text-xl font-bold text-white mb-1">Game of Skate</h3>
-                <p className="text-orange-100 text-sm">
-                  Desafie outros skatistas em partidas épicas
-                </p>
+          {/* Game of Skate - Requer login */}
+          {skatista ? (
+            <Link
+              to="/game"
+              className="group bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 shadow-lg active:scale-95 transition-all duration-200"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="text-4xl group-active:scale-110 transition-transform">��</div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-white mb-1">Game of Skate</h3>
+                  <p className="text-orange-100 text-sm">
+                    Desafie outros skatistas em partidas épicas
+                  </p>
+                </div>
+                <div className="text-white/70">→</div>
               </div>
-              <div className="text-white/70">→</div>
-            </div>
-          </Link>
-
-          {/* Meus Spots */}
-          <Link
-            to="/my-spots"
-            className="group bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-6 shadow-lg active:scale-95 transition-all duration-200"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="text-4xl group-active:scale-110 transition-transform">📍</div>
-              <div className="flex-1">
-                <h3 className="text-xl font-bold text-white mb-1">Meus Spots</h3>
-                <p className="text-green-100 text-sm">
-                  {skatista?.spots?.length || 0} spots salvos
-                </p>
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="group bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 shadow-lg active:scale-95 transition-all duration-200"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="text-4xl group-active:scale-110 transition-transform">🎮</div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-white mb-1">Game of Skate</h3>
+                  <p className="text-orange-100 text-sm">
+                    Faça login para desafiar outros skatistas
+                  </p>
+                </div>
+                <div className="text-white/70">🔒</div>
               </div>
-              <div className="text-white/70">→</div>
-            </div>
-          </Link>
+            </Link>
+          )}
 
-          {/* Explorar Pistas */}
+          {/* Explorar Pistas - Público */}
           <Link
             to="/skateparks"
             className="group bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl p-6 shadow-lg active:scale-95 transition-all duration-200"
@@ -121,20 +163,48 @@ export const Home: React.FC = () => {
               <div className="text-white/70">→</div>
             </div>
           </Link>
+
+          {/* Meus Spots - Requer login */}
+          {skatista ? (
+            <Link
+              to="/my-spots"
+              className="group bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-6 shadow-lg active:scale-95 transition-all duration-200"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="text-4xl group-active:scale-110 transition-transform">📍</div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-white mb-1">Meus Spots</h3>
+                  <p className="text-green-100 text-sm">
+                    {skatista?.spots?.length || 0} spots salvos
+                  </p>
+                </div>
+                <div className="text-white/70">→</div>
+              </div>
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="group bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-6 shadow-lg active:scale-95 transition-all duration-200"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="text-4xl group-active:scale-110 transition-transform">📍</div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-white mb-1">Meus Spots</h3>
+                  <p className="text-green-100 text-sm">
+                    Faça login para salvar seus spots
+                  </p>
+                </div>
+                <div className="text-white/70">🔒</div>
+              </div>
+            </Link>
+          )}
         </div>
       </div>
 
       {/* Secondary Actions */}
       <div className="px-4 mb-8">
-        <div className="grid grid-cols-2 gap-4">
-          <Link
-            to="/profile"
-            className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center active:scale-95 transition-all duration-200"
-          >
-            <div className="text-3xl mb-2">👤</div>
-            <div className="text-white font-medium text-sm">Perfil</div>
-          </Link>
-          
+        <div className="grid grid-cols-3 gap-4">
+          {/* Ranking - Público */}
           <Link
             to="/ranking"
             className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center active:scale-95 transition-all duration-200"
@@ -142,10 +212,38 @@ export const Home: React.FC = () => {
             <div className="text-3xl mb-2">🏆</div>
             <div className="text-white font-medium text-sm">Ranking</div>
           </Link>
+
+          {/* Tutoriais - Público */}
+          <Link
+            to="/tutorials"
+            className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center active:scale-95 transition-all duration-200"
+          >
+            <div className="text-3xl mb-2">📚</div>
+            <div className="text-white font-medium text-sm">Tutoriais</div>
+          </Link>
+          
+          {/* Perfil - Requer login */}
+          {skatista ? (
+            <Link
+              to="/profile"
+              className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center active:scale-95 transition-all duration-200"
+            >
+              <div className="text-3xl mb-2">👤</div>
+              <div className="text-white font-medium text-sm">Perfil</div>
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center active:scale-95 transition-all duration-200"
+            >
+              <div className="text-3xl mb-2">🔒</div>
+              <div className="text-white font-medium text-sm">Login</div>
+            </Link>
+          )}
         </div>
       </div>
 
-      {/* Meus Spots Preview */}
+      {/* Meus Spots Preview - Só para logados */}
       {skatista?.spots && skatista.spots.length > 0 && (
         <div className="px-4 mb-8">
           <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6">

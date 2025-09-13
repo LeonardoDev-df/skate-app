@@ -31,24 +31,27 @@ export interface GameMatch {
   turnoAtual: string;
   faseAtual: 'aguardandoManobra' | 'executandoManobra' | 'votacao' | 'finalizado';
   manobraAtual: string;
+  manobraEstabelecida?: string; // ✅ NOVO: Manobra que foi aceita e deve ser repetida
   criadorDaManobra: string | null;
   jogadorExecutando: string;
-  manobrasExecutadas: string[];
+  manobrasExecutadas: string[]; // ✅ Só manobras que foram aceitas por todos
+  manobrasTentadas?: string[]; // ✅ NOVO: Todas as tentativas (incluindo falhadas)
   eliminados: string[];
   vencedor: string;
   jogoFinalizado: boolean;
   dataInicio: any;
+  dataFim: any;
+  duracaoJogo: number | null;
   turnoTimestamp: number;
   votacao: {
     jogadorVotando: string;
     votos: Record<string, 'acertou' | 'errou'>;
     votosNecessarios: number;
-    resultado?: 'acertou' | 'errou'; // ✅ OPCIONAL para evitar undefined
+    resultado?: 'acertou' | 'errou';
   } | null;
   isFirstRound: boolean;
 }
 
-// ✅ NOVO: Tipo para o ranking
 export interface GameRanking {
   id: string;
   criador: string;
@@ -57,12 +60,14 @@ export interface GameRanking {
   inviteId: string;
   skatePark: string;
   vencedor: string;
+  duracaoJogo?: number | null;
   jogadores?: {
     name: string;
     letras: string;
     eliminado: boolean;
   }[];
   manobrasExecutadas?: string[];
+  manobrasTentadas?: string[]; // ✅ NOVO
 }
 
 export type Manobra = {

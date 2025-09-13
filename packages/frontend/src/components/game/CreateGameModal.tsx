@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+//import { useAuth } from '../../contexts/AuthContext';
 import { useGameOfSkate } from '../../hooks/useGameOfSkate';
 import { useSkateparks } from '../../hooks/useSkateparks';
 import { Player } from '../../types/game.types';
@@ -10,7 +10,7 @@ interface CreateGameModalProps {
 }
 
 export const CreateGameModal: React.FC<CreateGameModalProps> = ({ onClose, onGameCreated }) => {
-  const { skatista } = useAuth();
+  //const { skatista } = useAuth();
   const { createGameInvite, getSkateParksPlayers, loading } = useGameOfSkate();
   const { skateparks } = useSkateparks();
   

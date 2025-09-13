@@ -334,13 +334,17 @@ export const useGameOfSkate = () => {
         turnoAtual: firstPlayer.id,
         faseAtual: 'aguardandoManobra',
         manobraAtual: '',
+        manobraEstabelecida: '', // ✅ NOVO: Manobra que foi aceita e deve ser repetida
         criadorDaManobra: null,
         jogadorExecutando: '',
-        manobrasExecutadas: [],
+        manobrasExecutadas: [], // ✅ Só manobras que foram aceitas por todos
+        manobrasTentadas: [], // ✅ NOVO: Todas as tentativas (incluindo falhadas)
         eliminados: [],
         vencedor: '',
         jogoFinalizado: false,
         dataInicio: serverTimestamp(),
+        dataFim: null,
+        duracaoJogo: null,
         turnoTimestamp: Date.now(),
         votacao: null,
         isFirstRound: true
@@ -363,12 +367,13 @@ export const useGameOfSkate = () => {
 
     setLoading(true);
     try {
+      // ✅ CORREÇÃO: Não adicionar à lista de executadas ainda
       await updateDoc(doc(db, 'Partidas', activeGame.id), {
         manobraAtual: manobra,
         criadorDaManobra: skatista.uid,
         jogadorExecutando: skatista.uid,
         faseAtual: 'executandoManobra',
-        manobrasExecutadas: arrayUnion(manobra),
+        manobrasTentadas: arrayUnion(manobra), // ✅ Adicionar às tentativas
         turnoTimestamp: Date.now()
       });
       
@@ -382,115 +387,96 @@ export const useGameOfSkate = () => {
     }
   }, [activeGame, skatista]);
 
- // ✅ NOVA FUNÇÃO: Finalizar execução da manobra (sem dizer se acertou/errou)
-const finalizarExecucao = useCallback(async () => {
-  if (!activeGame || !skatista) return;
+  const finalizarExecucao = useCallback(async () => {
+    if (!activeGame || !skatista) return;
 
-  setLoading(true);
-  try {
-    // ✅ CORREÇÃO: Quem executa NÃO pode dizer se acertou/errou
-    // Apenas os outros jogadores votam
-    const votingPlayers = activeGame.jogadores.filter(p => 
-      p.id !== skatista.uid && // Quem executa não vota
-      !activeGame.eliminados.includes(p.id) // Eliminados não votam
-    );
+    setLoading(true);
+    try {
+      const votingPlayers = activeGame.jogadores.filter(p => 
+        p.id !== skatista.uid &&
+        !activeGame.eliminados.includes(p.id)
+      );
 
-    console.log('🗳️ Iniciando votação automática:', {
-      jogadorExecutando: skatista.name,
-      votingPlayers: votingPlayers.map(p => p.name),
-      totalVotantes: votingPlayers.length
-    });
+      const votacao = {
+        jogadorVotando: skatista.uid,
+        votos: {},
+        votosNecessarios: votingPlayers.length
+      };
 
-    // ✅ CORREÇÃO: Não incluir campo 'resultado' se for undefined
-    const votacao = {
-      jogadorVotando: skatista.uid,
-      votos: {},
-      votosNecessarios: votingPlayers.length
-      // ✅ REMOVIDO: resultado: undefined (causava erro no Firebase)
-    };
-
-    await updateDoc(doc(db, 'Partidas', activeGame.id), {
-      faseAtual: 'votacao',
-      votacao
-    });
-    
-    playSound(349, 300, 'vote');
-  } catch (error: any) {
-    setError(error.message);
-    playSound(220, 500, 'error');
-    throw error;
-  } finally {
-    setLoading(false);
-  }
-}, [activeGame, skatista]);
-
-// ✅ VOTAR CORRIGIDO - Reduzir delay para 2 segundos
-const votar = useCallback(async (voto: 'acertou' | 'errou') => {
-  if (!activeGame || !skatista || !activeGame.votacao) return;
-  
-  if (skatista.uid === activeGame.jogadorExecutando || 
-      activeGame.eliminados.includes(skatista.uid) ||
-      activeGame.votacao.votos[skatista.uid]) {
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const novosVotos = {
-      ...activeGame.votacao.votos,
-      [skatista.uid]: voto
-    };
-
-    const votosRecebidos = Object.keys(novosVotos).length;
-    const votacaoUpdate: any = {
-      ...activeGame.votacao,
-      votos: novosVotos
-    };
-
-    if (votosRecebidos >= activeGame.votacao.votosNecessarios) {
-      const votosErrou = Object.values(novosVotos).filter(v => v === 'errou').length;
-      const votosAcertou = Object.values(novosVotos).filter(v => v === 'acertou').length;
+      await updateDoc(doc(db, 'Partidas', activeGame.id), {
+        faseAtual: 'votacao',
+        votacao
+      });
       
-      const resultado = votosAcertou === activeGame.votacao.votosNecessarios ? 'acertou' : 'errou';
-      votacaoUpdate.resultado = resultado;
-
-      console.log('🏁 Resultado da votação:', { resultado, votosAcertou, votosErrou });
-
-      await updateDoc(doc(db, 'Partidas', activeGame.id), {
-        votacao: votacaoUpdate
-      });
-
-      // ✅ CORREÇÃO: Reduzir delay para 2 segundos
-      setTimeout(async () => {
-        try {
-          if (resultado === 'errou') {
-            await processarErro(activeGame.jogadorExecutando);
-            playSound(220, 600, 'error');
-          } else {
-            await processarAcerto();
-            playSound(523, 600, 'success');
-          }
-        } catch (error) {
-          console.error('❌ Erro ao processar resultado:', error);
-        }
-      }, 2000); // ✅ Reduzido de 3000 para 2000ms
-    } else {
-      await updateDoc(doc(db, 'Partidas', activeGame.id), {
-        votacao: votacaoUpdate
-      });
+      playSound(349, 300, 'vote');
+    } catch (error: any) {
+      setError(error.message);
+      playSound(220, 500, 'error');
+      throw error;
+    } finally {
+      setLoading(false);
     }
+  }, [activeGame, skatista]);
+
+  const votar = useCallback(async (voto: 'acertou' | 'errou') => {
+    if (!activeGame || !skatista || !activeGame.votacao) return;
     
-    playSound(440, 200, 'vote');
-  } catch (error: any) {
-    setError(error.message);
-    playSound(220, 500, 'error');
-    throw error;
-  } finally {
-    setLoading(false);
-  }
-}, [activeGame, skatista]);
+    if (skatista.uid === activeGame.jogadorExecutando || 
+        activeGame.eliminados.includes(skatista.uid) ||
+        activeGame.votacao.votos[skatista.uid]) {
+      return;
+    }
 
+    setLoading(true);
+    try {
+      const novosVotos = {
+        ...activeGame.votacao.votos,
+        [skatista.uid]: voto
+      };
 
+      const votosRecebidos = Object.keys(novosVotos).length;
+      const votacaoUpdate: any = {
+        ...activeGame.votacao,
+        votos: novosVotos
+      };
+
+      if (votosRecebidos >= activeGame.votacao.votosNecessarios) {
+        const votosErrou = Object.values(novosVotos).filter(v => v === 'errou').length;
+        const votosAcertou = Object.values(novosVotos).filter(v => v === 'acertou').length;
+        
+        const resultado = votosAcertou === activeGame.votacao.votosNecessarios ? 'acertou' : 'errou';
+        votacaoUpdate.resultado = resultado;
+
+        await updateDoc(doc(db, 'Partidas', activeGame.id), {
+          votacao: votacaoUpdate
+        });
+
+        setTimeout(async () => {
+          try {
+            if (resultado === 'errou') {
+              await processarErroVotacao(activeGame.jogadorExecutando);
+            } else {
+              await processarAcertoVotacao();
+            }
+          } catch (error) {
+            console.error('❌ Erro ao processar resultado:', error);
+          }
+        }, 2000);
+      } else {
+        await updateDoc(doc(db, 'Partidas', activeGame.id), {
+          votacao: votacaoUpdate
+        });
+      }
+      
+      playSound(440, 200, 'vote');
+    } catch (error: any) {
+      setError(error.message);
+      playSound(220, 500, 'error');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [activeGame, skatista]);
 
   const getNextPlayer = (jogadores: Player[], currentPlayer: string, eliminados: string[]): string => {
     const jogadoresAtivos = jogadores.filter(p => !eliminados.includes(p.id));
@@ -499,7 +485,94 @@ const votar = useCallback(async (voto: 'acertou' | 'errou') => {
     return jogadoresAtivos[nextIndex].id;
   };
 
-  const processarErro = async (playerId: string) => {
+  // ✅ NOVA LÓGICA: Processar erro da votação
+  const processarErroVotacao = async (playerId: string) => {
+    if (!activeGame) return;
+
+    try {
+      console.log('🔍 Processando erro da votação:', {
+        jogadorExecutando: playerId,
+        criadorDaManobra: activeGame.criadorDaManobra,
+        manobraEstabelecida: activeGame.manobraEstabelecida,
+        ehCriadorDaManobra: playerId === activeGame.criadorDaManobra
+      });
+
+      // ✅ CORREÇÃO: Só dá letra se NÃO for o criador da manobra
+      if (playerId === activeGame.criadorDaManobra) {
+        // Criador errou sua própria manobra - passa a vez sem dar letra
+        const nextPlayer = getNextPlayer(activeGame.jogadores, activeGame.turnoAtual, activeGame.eliminados);
+        
+        await updateDoc(doc(db, 'Partidas', activeGame.id), {
+          turnoAtual: nextPlayer,
+          faseAtual: 'aguardandoManobra',
+          manobraAtual: '',
+          criadorDaManobra: null,
+          jogadorExecutando: '',
+          votacao: null
+        });
+        
+        playSound(349, 400, 'notification');
+        return;
+      }
+
+      // ✅ CORREÇÃO: Só dá letra se estiver tentando repetir uma manobra estabelecida
+      if (activeGame.manobraEstabelecida && activeGame.manobraAtual === activeGame.manobraEstabelecida) {
+        await darLetra(playerId);
+      } else {
+        // Não era uma manobra estabelecida, só passa a vez
+        const nextPlayer = getNextPlayer(activeGame.jogadores, activeGame.turnoAtual, activeGame.eliminados);
+        
+        await updateDoc(doc(db, 'Partidas', activeGame.id), {
+          turnoAtual: nextPlayer,
+          faseAtual: 'aguardandoManobra',
+          manobraAtual: '',
+          criadorDaManobra: null,
+          jogadorExecutando: '',
+          votacao: null
+        });
+        
+        playSound(349, 400, 'notification');
+      }
+
+    } catch (error: any) {
+      setError(error.message);
+      throw error;
+    }
+  };
+
+  // ✅ NOVA LÓGICA: Processar acerto da votação
+  const processarAcertoVotacao = async () => {
+    if (!activeGame) return;
+
+    try {
+      // ✅ Se acertou, a manobra se torna estabelecida (se ainda não era)
+      if (!activeGame.manobraEstabelecida) {
+        // Primeira vez que alguém acerta esta manobra - ela se torna estabelecida
+        await updateDoc(doc(db, 'Partidas', activeGame.id), {
+          manobraEstabelecida: activeGame.manobraAtual,
+          manobrasExecutadas: arrayUnion(activeGame.manobraAtual)
+        });
+      }
+
+      // Próximo jogador tenta a mesma manobra
+      const nextPlayer = getNextPlayer(activeGame.jogadores, activeGame.turnoAtual, activeGame.eliminados);
+      
+      await updateDoc(doc(db, 'Partidas', activeGame.id), {
+        turnoAtual: nextPlayer,
+        jogadorExecutando: nextPlayer,
+        faseAtual: 'executandoManobra',
+        votacao: null
+      });
+      
+      playSound(523, 600, 'success');
+    } catch (error: any) {
+      setError(error.message);
+      throw error;
+    }
+  };
+
+  // ✅ NOVA FUNÇÃO: Dar letra ao jogador
+  const darLetra = async (playerId: string) => {
     if (!activeGame) return;
 
     try {
@@ -523,27 +596,56 @@ const votar = useCallback(async (voto: 'acertou' | 'errou') => {
 
       const jogadoresAtivos = jogadoresAtualizados.filter(p => !eliminados.includes(p.id));
       const jogoFinalizado = jogadoresAtivos.length <= 1;
-      const vencedor = jogoFinalizado && jogadoresAtivos.length === 1 
-        ? jogadoresAtivos[0].name 
-        : '';
+      
+      let vencedor = '';
+      let dataFim = null;
+      let duracaoJogo = null;
+      
+      if (jogoFinalizado) {
+        if (jogadoresAtivos.length === 1) {
+          vencedor = jogadoresAtivos[0].name;
+        } else if (jogadoresAtivos.length === 0) {
+          const ultimoEliminado = eliminados[eliminados.length - 1];
+          const penultimoEliminado = eliminados[eliminados.length - 2];
+          vencedor = jogadoresAtualizados.find(p => p.id === penultimoEliminado)?.name || 'Empate';
+        }
+        
+        dataFim = serverTimestamp();
+        
+        if (activeGame.dataInicio) {
+          const inicioTime = activeGame.dataInicio.toDate ? activeGame.dataInicio.toDate().getTime() : activeGame.dataInicio;
+          const fimTime = Date.now();
+          duracaoJogo = Math.floor((fimTime - inicioTime) / 1000);
+        }
+      }
 
-      const nextPlayer = jogoFinalizado ? '' : getNextPlayer(jogadoresAtualizados, activeGame.turnoAtual, eliminados);
+      // ✅ CORREÇÃO: Se todos acertaram a manobra, volta para o criador escolher nova manobra
+      const nextPlayer = jogoFinalizado ? '' : 
+        (jogadoresAtivos.filter(p => p.id !== activeGame.criadorDaManobra).length === 0) ?
+        activeGame.criadorDaManobra : // Todos tentaram, volta pro criador
+        getNextPlayer(jogadoresAtualizados, activeGame.turnoAtual, eliminados);
+
+      const proximaFase = jogoFinalizado ? 'finalizado' :
+        (nextPlayer === activeGame.criadorDaManobra) ? 'aguardandoManobra' : 'executandoManobra';
 
       await updateDoc(doc(db, 'Partidas', activeGame.id), {
         jogadores: jogadoresAtualizados,
         eliminados,
         jogoFinalizado,
         vencedor,
+        dataFim,
+        duracaoJogo,
         turnoAtual: nextPlayer,
-        faseAtual: jogoFinalizado ? 'finalizado' : 'aguardandoManobra',
-        manobraAtual: '',
-        criadorDaManobra: null,
-        jogadorExecutando: '',
+        faseAtual: proximaFase,
+        manobraAtual: proximaFase === 'aguardandoManobra' ? '' : activeGame.manobraAtual,
+        manobraEstabelecida: proximaFase === 'aguardandoManobra' ? '' : activeGame.manobraEstabelecida,
+        criadorDaManobra: proximaFase === 'aguardandoManobra' ? null : activeGame.criadorDaManobra,
+        jogadorExecutando: proximaFase === 'executandoManobra' ? nextPlayer : '',
         votacao: null
       });
 
       if (jogoFinalizado) {
-        await salvarRanking(jogadoresAtualizados, eliminados, vencedor);
+        await salvarRanking(jogadoresAtualizados, eliminados, vencedor, duracaoJogo);
         playSound(523, 1500, 'victory');
       }
 
@@ -553,25 +655,7 @@ const votar = useCallback(async (voto: 'acertou' | 'errou') => {
     }
   };
 
-  const processarAcerto = async () => {
-    if (!activeGame) return;
-
-    try {
-      const nextPlayer = getNextPlayer(activeGame.jogadores, activeGame.turnoAtual, activeGame.eliminados);
-      
-      await updateDoc(doc(db, 'Partidas', activeGame.id), {
-        turnoAtual: nextPlayer,
-        jogadorExecutando: nextPlayer,
-        faseAtual: 'executandoManobra',
-        votacao: null
-      });
-    } catch (error: any) {
-      setError(error.message);
-      throw error;
-    }
-  };
-
-  const salvarRanking = async (jogadores: Player[], eliminados: string[], vencedor: string) => {
+  const salvarRanking = async (jogadores: Player[], eliminados: string[], vencedor: string, duracaoJogo: number | null) => {
     if (!activeGame) return;
 
     try {
@@ -584,12 +668,14 @@ const votar = useCallback(async (voto: 'acertou' | 'errou') => {
         inviteId: activeGame.inviteId,
         skatePark: activeGame.skatePark,
         vencedor,
+        duracaoJogo,
         jogadores: jogadores.map(p => ({
           name: p.name,
           letras: p.letras,
           eliminado: eliminados.includes(p.id)
         })),
-        manobrasExecutadas: activeGame.manobrasExecutadas
+        manobrasExecutadas: activeGame.manobrasExecutadas || [],
+        manobrasTentadas: activeGame.manobrasTentadas || []
       });
     } catch (error) {
       console.error('❌ Erro ao salvar ranking:', error);
@@ -610,7 +696,7 @@ const votar = useCallback(async (voto: 'acertou' | 'errou') => {
     createGameInvite,
     respondToInvite,
     escolherManobra,
-    finalizarExecucao, // ✅ NOVA FUNÇÃO
+    finalizarExecucao,
     votar,
     clearPlayersCache
   };

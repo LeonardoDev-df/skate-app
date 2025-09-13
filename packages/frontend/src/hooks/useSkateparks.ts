@@ -1,14 +1,8 @@
 import { useState, useEffect } from 'react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { Skatepark } from "../types/skatepark";
 
-interface Skatepark {
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  region: string;
-}
 
 export const useSkateparks = () => {
   const [skateparks, setSkateparks] = useState<Skatepark[]>([]);

@@ -137,7 +137,7 @@ export const Login: React.FC = () => {
               )}
             </button>
 
-            {/* Test Login Button */}
+            {/* Test Login Button
             <button
               type="button"
               onClick={handleTestLogin}
@@ -145,6 +145,8 @@ export const Login: React.FC = () => {
             >
               🧪 Login de Teste (Leonardo)
             </button>
+            */}
+            
 
             {/* Forgot Password */}
             <div className="text-center">
@@ -181,7 +183,7 @@ export const Login: React.FC = () => {
             <span className="animate-bounce delay-200">⚡</span>
           </div>
           <p className="text-white/50 text-xs">
-            Skate App © 2024 - Sua pista digital
+            Skate App © 2025 - Sua pista digital
           </p>
         </div>
       </div>
