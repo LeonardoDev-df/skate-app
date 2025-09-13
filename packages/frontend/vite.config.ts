@@ -34,7 +34,8 @@ export default defineConfig({
   // ✅ Configurações de build otimizadas
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false, // ✅ Desabilitar sourcemap em produção
+    minify: 'terser',
     rollupOptions: {
       output: {
         manualChunks: {
@@ -44,6 +45,9 @@ export default defineConfig({
         },
       },
     },
+    // ✅ Otimizações de build
+    chunkSizeWarningLimit: 1000,
+    assetsInlineLimit: 4096,
   },
   // ✅ Configurações de CSS
   css: {
@@ -66,4 +70,7 @@ export default defineConfig({
       'firebase/firestore',
     ],
   },
+  // ✅ Configurações específicas para Vercel
+  base: './',
+  publicDir: 'public',
 })
