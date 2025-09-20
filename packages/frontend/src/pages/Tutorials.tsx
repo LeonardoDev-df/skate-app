@@ -18,7 +18,7 @@ const tutorials: Tutorial[] = [
     difficulty: 'Iniciante',
     duration: '5 min',
     description: 'A manobra fundamental do skate. Aprenda a base de tudo!',
-    videoUrl: 'https://www.youtube.com/embed/VasSLuFO4wY',
+    videoUrl: 'https://www.youtube.com/embed/QkeOAcj8Y5k', // Braille Skateboarding - How to Ollie
     steps: [
       'Posicione o pé traseiro na tail do skate',
       'Pé da frente no meio do shape',
@@ -35,7 +35,7 @@ const tutorials: Tutorial[] = [
     difficulty: 'Intermediário',
     duration: '8 min',
     description: 'Evolução do ollie com giro do skate. Manobra clássica!',
-    videoUrl: 'https://www.youtube.com/embed/lo7ZxkGPOXo',
+    videoUrl: 'https://www.youtube.com/embed/Islzjx93Mmc', // VLSkate - How to Kickflip
     steps: [
       'Domine o ollie primeiro',
       'Posicione o pé da frente mais diagonal',
@@ -52,7 +52,7 @@ const tutorials: Tutorial[] = [
     difficulty: 'Intermediário',
     duration: '7 min',
     description: 'Giro do skate usando o calcanhar. Alternativa ao kickflip!',
-    videoUrl: 'https://www.youtube.com/embed/uFqfbBWSkQE',
+    videoUrl: 'https://www.youtube.com/embed/tTnM_hq9J7w', // Braille Skateboarding - How to Heelflip
     steps: [
       'Domine o ollie primeiro',
       'Posicione o pé da frente mais para o lado',
@@ -69,7 +69,7 @@ const tutorials: Tutorial[] = [
     difficulty: 'Iniciante',
     duration: '6 min',
     description: 'Giro de 180° do skate sem flip. Ótima para iniciantes!',
-    videoUrl: 'https://www.youtube.com/embed/VYmu1Q2ZVQY',
+    videoUrl: 'https://www.youtube.com/embed/uaVQBXmkp-4', // Braille Skateboarding - How to Pop Shuvit
     steps: [
       'Posicione os pés como no ollie',
       'Pé traseiro um pouco mais para o lado',
@@ -86,7 +86,7 @@ const tutorials: Tutorial[] = [
     difficulty: 'Iniciante',
     duration: '4 min',
     description: 'Equilibre-se apenas nas rodas traseiras. Essencial para combos!',
-    videoUrl: 'https://www.youtube.com/embed/ZJFlSlmBNQE',
+    videoUrl: 'https://www.youtube.com/embed/ZJFlSlmBNQE', // Braille Skateboarding - How to Manual
     steps: [
       'Ganhe velocidade moderada',
       'Posicione os pés: traseiro na tail, dianteiro no meio',
@@ -103,7 +103,7 @@ const tutorials: Tutorial[] = [
     difficulty: 'Avançado',
     duration: '12 min',
     description: 'Combinação de 360 shove-it com kickflip. Manobra icônica!',
-    videoUrl: 'https://www.youtube.com/embed/jmCqmM9yrQE',
+    videoUrl: 'https://www.youtube.com/embed/jmCqmM9yrQE', // VLSkate - How to 360 Flip
     steps: [
       'Domine kickflip e 360 shove-it separadamente',
       'Posição dos pés específica para tre-flip',
@@ -246,7 +246,7 @@ export const Tutorials: React.FC = () => {
 
             {/* Passo a Passo */}
             <div>
-              <h3 className="text-white font-medium mb-3 text-sm">📝 Passo a Passo</h3>
+              <h3 className="text-white font-medium mb-3 text-sm">�� Passo a Passo</h3>
               <div className="space-y-3">
                 {selectedTutorial.steps.map((step, index) => (
                   <div key={index} className="flex items-start space-x-3">
