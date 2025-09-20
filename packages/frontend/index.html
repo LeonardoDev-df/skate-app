@@ -1,164 +1,62 @@
 <!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  
-  <!-- Viewport e responsividade -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  
-  <!-- Informações básicas -->
-  <title>🛹 Skate App - Plataforma para Skatistas</title>
-  <meta name="description" content="A plataforma completa para skatistas - Jogue, aprenda e conecte-se! Tutoriais, mapas de skateparks e jogos interativos." />
-  <meta name="keywords" content="skate, skateboard, manobras, tutoriais, skateparks, jogo, app" />
-  <meta name="author" content="Skate App Team" />
-  
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="/skateboard.svg" />
-  <link rel="alternate icon" href="/favicon.ico" />
-  
-  <!-- PWA Meta Tags -->
-  <meta name="theme-color" content="#8b5cf6" />
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#8b5cf6" />
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#6d28d9" />
-  <meta name="background-color" content="#0f172a" />
-  
-  <!-- Apple PWA -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Skate App" />
-  <meta name="apple-touch-fullscreen" content="yes" />
-  
-  <!-- Apple Icons -->
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <link rel="apple-touch-icon" sizes="57x57" href="/icons/apple-icon-57x57.png" />
-  <link rel="apple-touch-icon" sizes="60x60" href="/icons/apple-icon-60x60.png" />
-  <link rel="apple-touch-icon" sizes="72x72" href="/icons/apple-icon-72x72.png" />
-  <link rel="apple-touch-icon" sizes="76x76" href="/icons/apple-icon-76x76.png" />
-  <link rel="apple-touch-icon" sizes="114x114" href="/icons/apple-icon-114x114.png" />
-  <link rel="apple-touch-icon" sizes="120x120" href="/icons/apple-icon-120x120.png" />
-  <link rel="apple-touch-icon" sizes="144x144" href="/icons/apple-icon-144x144.png" />
-  <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-icon-152x152.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180x180.png" />
-  
-  <!-- Apple Splash Screens -->
-  <link rel="apple-touch-startup-image" href="/splash/apple-splash-2048-2732.jpg" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
-  <link rel="apple-touch-startup-image" href="/splash/apple-splash-1668-2224.jpg" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
-  <link rel="apple-touch-startup-image" href="/splash/apple-splash-1536-2048.jpg" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
-  <link rel="apple-touch-startup-image" href="/splash/apple-splash-1125-2436.jpg" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
-  <link rel="apple-touch-startup-image" href="/splash/apple-splash-1242-2208.jpg" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
-  <link rel="apple-touch-startup-image" href="/splash/apple-splash-750-1334.jpg" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
-  <link rel="apple-touch-startup-image" href="/splash/apple-splash-640-1136.jpg" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
-  
-  <!-- Microsoft Tiles -->
-  <meta name="msapplication-TileColor" content="#8b5cf6" />
-  <meta name="msapplication-TileImage" content="/icons/ms-icon-144x144.png" />
-  <meta name="msapplication-config" content="/browserconfig.xml" />
-  
-  <!-- Android -->
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="application-name" content="Skate App" />
-  
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="/manifest.json" />
-  
-  <!-- Open Graph / Facebook -->
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://skateapp.com/" />
-  <meta property="og:title" content="🛹 Skate App - Plataforma para Skatistas" />
-  <meta property="og:description" content="A plataforma completa para skatistas - Jogue, aprenda e conecte-se!" />
-  <meta property="og:image" content="/og-image.png" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta property="og:site_name" content="Skate App" />
-  <meta property="og:locale" content="pt_BR" />
-  
-  <!-- Twitter -->
-  <meta property="twitter:card" content="summary_large_image" />
-  <meta property="twitter:url" content="https://skateapp.com/" />
-  <meta property="twitter:title" content="🛹 Skate App - Plataforma para Skatistas" />
-  <meta property="twitter:description" content="A plataforma completa para skatistas - Jogue, aprenda e conecte-se!" />
-  <meta property="twitter:image" content="/twitter-image.png" />
-  <meta property="twitter:creator" content="@skateapp" />
-  
-  <!-- Preload crítico -->
-  <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin />
-  
-  <!-- DNS Prefetch -->
-  <link rel="dns-prefetch" href="//fonts.googleapis.com" />
-  <link rel="dns-prefetch" href="//api.skateapp.com" />
-  
-  <!-- Preconnect -->
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  
-  <!-- Canonical -->
-  <link rel="canonical" href="https://skateapp.com/" />
-  
-  <!-- Robots -->
-  <meta name="robots" content="index, follow" />
-  
-  <!-- Security -->
-  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-  <meta http-equiv="X-Frame-Options" content="DENY" />
-  <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
-  <meta name="referrer" content="strict-origin-when-cross-origin" />
-  
-  <!-- Performance -->
-  <meta http-equiv="Accept-CH" content="DPR, Viewport-Width, Width" />
-  
-  <!-- Schema.org -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "Skate App",
-    "description": "A plataforma completa para skatistas - Jogue, aprenda e conecte-se!",
-    "url": "https://skateapp.com",
-    "applicationCategory": "SportsApplication",
-    "operatingSystem": "Any",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "BRL"
-    },
-    "author": {
-      "@type": "Organization",
-      "name": "Skate App Team"
-    },
-    "screenshot": "https://skateapp.com/screenshots/mobile-home.png",
-    "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": "4.8",
-      "ratingCount": "1250"
-    }
-  }
-  </script>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="module" src="/src/main.tsx"></script>
-  
-  <!-- Service Worker Registration -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then((registration) => {
-            console.log('SW registered: ', registration);
-          })
-          .catch((registrationError) => {
-            console.log('SW registration failed: ', registrationError);
-          });
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/skateboard.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🛹 Skate App</title>
+    <meta name="description" content="A plataforma completa para skatistas - Jogue, aprenda e conecte-se!" />
+    
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#8b5cf6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Skate App" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- PWA Install -->
+    <script>
+      let deferredPrompt;
+      
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // Mostrar botão de instalação
+        const installBtn = document.createElement('button');
+        installBtn.innerHTML = '📱 Instalar App';
+        installBtn.style.cssText = `
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          background: #8b5cf6;
+          color: white;
+          border: none;
+          padding: 12px 20px;
+          border-radius: 25px;
+          font-weight: bold;
+          cursor: pointer;
+          z-index: 9999;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        
+        installBtn.onclick = async () => {
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+              installBtn.remove();
+            }
+            deferredPrompt = null;
+          }
+        };
+        
+        document.body.appendChild(installBtn);
       });
-    }
-  </script>
-  
-  <!-- Fallback para JavaScript desabilitado -->
-  <noscript>
-    <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
-      <h1>🛹 Skate App</h1>
-      <p>Para usar o Skate App, você precisa habilitar o JavaScript no seu navegador.</p>
-      <p>Para uma melhor experiência, recomendamos usar um navegador moderno como Chrome, Firefox ou Safari.</p>
-    </div>
-  </noscript>
-</body>
+    </script>
+  </body>
 </html>
