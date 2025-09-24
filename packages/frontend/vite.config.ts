@@ -12,13 +12,6 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-      },
-    },
     rollupOptions: {
       output: {
         manualChunks: {
@@ -30,17 +23,10 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    host: '0.0.0.0', // Permite acesso externo
-    proxy: {
-      '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
+    host: true,
   },
   preview: {
     port: 3000,
-    host: '0.0.0.0', // Permite acesso externo
+    host: true,
   },
 })

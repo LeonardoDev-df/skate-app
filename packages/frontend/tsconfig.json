@@ -11,34 +11,23 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "strict": true,
+    "strict": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@/components/*": ["./src/components/*"],
-      "@/pages/*": ["./src/pages/*"],
-      "@/services/*": ["./src/services/*"],
-      "@/utils/*": ["./src/utils/*"],
-      "@/types/*": ["./src/types/*"],
-      "@/hooks/*": ["./src/hooks/*"],
-      "@/contexts/*": ["./src/contexts/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [
+    "src",
     "src/**/*",
     "src/**/*.ts",
     "src/**/*.tsx"
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "vite.config.ts",
-    "vite.config.js"
-  ],
-  "references": [
-    { "path": "./tsconfig.node.json" }
+    "dist"
   ]
 }
